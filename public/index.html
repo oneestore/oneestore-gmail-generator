@@ -2,421 +2,745 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oneestore Gmail Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Oneestore Ops</title>
   <meta name="theme-color" content="#0f0f1a">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface-2: #252540;
+      --border: #2a2a4a;
+      --border-2: #3a3a5a;
+      --text: #e0e0e0;
+      --muted: #888;
+      --muted-2: #555;
+      --primary: #5c6bc0;
+      --c-generate: #5c6bc0;
+      --c-checking: #29b6f6;
+      --c-editing:  #ab47bc;
+      --c-listed:   #43a047;
+      --c-sold:     #ffa726;
+      --c-flagged:  #e53935;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f0f1a;
-      color: #e0e0e0;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
+      padding-bottom: 76px; /* bottom nav */
     }
+    button { font-family: inherit; cursor: pointer; }
+    input, select { font-family: inherit; }
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+    /* ── Header ── */
     .header {
-      background: #1a1a2e;
-      padding: 16px;
-      border-bottom: 1px solid #2a2a4a;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      background: linear-gradient(180deg, #1c1c34 0%, var(--surface) 100%);
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
     }
-    .header h1 { font-size: 17px; color: #7b8cde; margin-bottom: 12px; letter-spacing: 0.5px; }
-    .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .header-top { display: flex; align-items: baseline; gap: 8px; }
+    .brand { font-size: 16px; font-weight: 800; color: #fff; letter-spacing: 0.3px; }
+    .brand .dot { color: var(--primary); }
+    .view-label { font-size: 11px; color: var(--muted-2); margin-left: auto; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ── Stage tabs (pipeline) ── */
+    .stage-tabs {
+      display: flex; gap: 6px; margin-top: 12px;
+      overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+    }
+    .stage-tabs::-webkit-scrollbar { display: none; }
+    .stage-tab {
+      flex: 0 0 auto;
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--muted);
+      font-size: 12px; font-weight: 600;
+      transition: transform .12s ease, background .15s ease;
+    }
+    .stage-tab .badge {
+      min-width: 18px; height: 18px; padding: 0 5px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.08);
+      border-radius: 9px; font-size: 11px; font-weight: 700;
+    }
+    .stage-tab.active { color: #fff; }
+    .stage-tab.active .badge { background: rgba(0,0,0,0.25); }
+    .stage-tab:active { transform: scale(0.95); }
+
+    /* ── Pipeline toolbar ── */
+    .toolbar { padding: 12px 14px 0; display: flex; flex-direction: column; gap: 10px; }
     .btn-generate {
-      flex: 1;
-      padding: 10px 16px;
-      background: #5c6bc0;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #6573c8, #4f5fb5);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700;
+      box-shadow: 0 3px 10px rgba(92,107,192,0.3);
+      transition: transform .12s ease;
     }
-    .btn-generate:active { background: #3f4fa0; }
-    .btn-refresh {
-      padding: 10px 14px;
-      background: #252540;
-      color: #aaa;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .counter { font-size: 12px; color: #666; margin-left: 4px; white-space: nowrap; }
-    .search-wrap { margin-top: 10px; }
+    .btn-generate:active { transform: scale(0.98); }
     .search {
-      width: 100%;
-      padding: 9px 12px;
-      background: #252540;
-      border: 1px solid #3a3a5a;
-      border-radius: 8px;
-      color: #e0e0e0;
-      font-size: 14px;
+      width: 100%; padding: 10px 12px;
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 9px; color: var(--text); font-size: 14px;
     }
-    .search::placeholder { color: #555; }
+    .search::placeholder { color: var(--muted-2); }
+
+    /* ── Card list ── */
     .list { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
     .card {
-      background: #1a1a2e;
-      border-radius: 12px;
-      padding: 14px;
-      border: 1px solid #2a2a4a;
-      border-left: 3px solid #5c6bc0;
+      background: var(--surface);
+      border-radius: 12px; padding: 13px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      animation: rise .2s ease;
     }
-    .card.sold    { border-left-color: #666; opacity: 0.8; }
-    .card.flagged { border-left-color: #e53935; }
-    .card.available { border-left-color: #43a047; }
-    .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .email-text {
-      font-family: monospace;
-      font-size: 13px;
-      color: #7b8cde;
-      flex: 1;
-      word-break: break-all;
-    }
-    .pass-text {
-      font-family: monospace;
-      font-size: 13px;
-      color: #aaa;
-      flex: 1;
-    }
+    @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .card.s-generate { border-left-color: var(--c-generate); }
+    .card.s-checking { border-left-color: var(--c-checking); }
+    .card.s-editing  { border-left-color: var(--c-editing); }
+    .card.s-listed   { border-left-color: var(--c-listed); }
+    .card.s-sold     { border-left-color: var(--c-sold); opacity: 0.92; }
+    .card.s-flagged  { border-left-color: var(--c-flagged); opacity: 0.85; }
+    .card.needs-price { box-shadow: inset 0 0 0 1px rgba(255,167,38,0.25); }
+
+    .row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .email-text { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; color: #8b9bf0; flex: 1; word-break: break-all; }
+    .pass-text  { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; color: var(--muted); flex: 1; word-break: break-all; }
     .copy-btn {
-      padding: 5px 10px;
-      background: #252540;
-      color: #888;
-      border: none;
-      border-radius: 6px;
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      flex-shrink: 0;
+      padding: 5px 10px; background: var(--surface-2); color: var(--muted);
+      border: none; border-radius: 6px; font-size: 12px; white-space: nowrap; flex-shrink: 0;
     }
-    .copy-btn.ok { color: #43a047; }
-    .meta { font-size: 11px; color: #555; margin-bottom: 10px; }
-    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
-    .field label { font-size: 10px; color: #777; display: block; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .copy-btn.ok { color: var(--c-listed); }
+
+    .meta-row { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; flex-wrap: wrap; }
+    .stage-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 3px 8px; border-radius: 6px;
+    }
+    .stage-pill .ico { width: 6px; height: 6px; border-radius: 50%; }
+    .meta-date { font-size: 11px; color: var(--muted-2); }
+
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 9px; }
+    .field label { font-size: 9px; color: var(--muted); display: block; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
     .field input, .field select {
-      width: 100%;
-      background: #252540;
-      border: 1px solid #3a3a5a;
-      border-radius: 6px;
-      color: #e0e0e0;
-      padding: 6px 8px;
-      font-size: 13px;
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 6px; color: var(--text); padding: 7px 8px; font-size: 13px;
     }
     .field.full { grid-column: 1 / -1; }
-    .card-footer { display: flex; gap: 6px; }
-    .btn-save {
-      flex: 1;
-      padding: 8px;
-      background: #1b3a2a;
-      color: #66bb6a;
-      border: none;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-    }
+
+    .card-footer { display: flex; gap: 6px; margin-bottom: 4px; }
+    .btn-save { flex: 1; padding: 8px; background: #1b3a2a; color: #66bb6a; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; }
     .btn-save:active { background: #0f2a1a; }
-    .btn-del {
-      padding: 8px 14px;
-      background: #3a1a1a;
-      color: #e57373;
-      border: none;
-      border-radius: 8px;
-      font-size: 13px;
-      cursor: pointer;
+    .btn-del { padding: 8px 13px; background: #3a1a1a; color: #e57373; border: none; border-radius: 8px; font-size: 13px; }
+
+    /* ── Stage action row ── */
+    .actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+    .btn-advance {
+      flex: 1; padding: 11px; border: none; border-radius: 9px;
+      font-size: 13px; font-weight: 700; color: #fff;
+      transition: transform .12s ease;
     }
-    /* ── Sale / WhatsApp linking section ── */
-    .sale-section {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px dashed #2a2a4a;
+    .btn-advance:active { transform: scale(0.98); }
+    .btn-advance.to-checking { background: linear-gradient(135deg, #33bdfb, #1ba3e0); }
+    .btn-advance.to-editing  { background: linear-gradient(135deg, #b85bcb, #9c3fb0); }
+    .btn-advance.to-listed   { background: linear-gradient(135deg, #4cb050, #379b3c); }
+    .btn-flag {
+      padding: 11px 14px; background: #3a1518; color: #ef5350;
+      border: 1px solid #5a2226; border-radius: 9px; font-size: 13px; font-weight: 600;
     }
-    .sale-section .field { margin-bottom: 8px; }
+    .btn-flag:active { background: #2a1012; }
+
+    /* ── Sale section (LISTED) ── */
+    .sale { margin-top: 10px; padding-top: 11px; border-top: 1px dashed var(--border); }
+    .sale .field { margin-bottom: 8px; }
+    .sale-warn { font-size: 11px; color: var(--c-sold); margin-bottom: 8px; }
     .btn-sale {
-      width: 100%;
-      padding: 10px;
-      background: #3a2f12;
-      color: #ffca28;
-      border: 1px solid #5a4a1a;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
+      width: 100%; padding: 11px;
+      background: linear-gradient(135deg, #ffb74d, #fb9d2a);
+      color: #3a2600; border: none; border-radius: 9px; font-size: 13px; font-weight: 800;
     }
-    .btn-sale:active { background: #2a2210; }
-    .btn-sale.linked {
-      background: #1b3a2a;
-      color: #66bb6a;
-      border-color: #2a5a3a;
+    .btn-sale:active { filter: brightness(0.94); }
+
+    /* ── Sold / flagged note ── */
+    .info-note {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      font-size: 12px; line-height: 1.5;
     }
-    .linked-note {
-      font-size: 11px;
-      color: #43a047;
-      margin-top: 6px;
-      text-align: center;
-      word-break: break-all;
+    .info-note.sold { background: rgba(255,167,38,0.08); color: #ffcc80; }
+    .info-note.flagged { background: rgba(229,57,53,0.08); color: #ef9a9a; }
+    .info-note .mono { font-family: ui-monospace, monospace; }
+
+    /* ── Empty / loading ── */
+    .empty, .loading { text-align: center; padding: 48px 20px; color: var(--muted-2); font-size: 14px; line-height: 1.6; }
+
+    /* ── Views ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Dashboard ── */
+    .dash { padding: 16px 14px; }
+    .dash-section-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin: 4px 2px 10px; }
+    .sales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+    .sales-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .sales-card .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .sales-card .v { font-size: 26px; font-weight: 800; color: #fff; margin-top: 4px; }
+    .sales-card .sub { font-size: 13px; color: var(--c-listed); margin-top: 2px; font-weight: 600; }
+
+    .funnel { display: flex; flex-direction: column; gap: 7px; margin-bottom: 8px; }
+    .funnel-row { display: flex; align-items: center; gap: 10px; }
+    .funnel-name { width: 78px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--text); }
+    .funnel-track { flex: 1; height: 26px; background: var(--surface-2); border-radius: 6px; overflow: hidden; position: relative; }
+    .funnel-bar { height: 100%; border-radius: 6px; min-width: 3px; transition: width .5s cubic-bezier(.2,.7,.3,1); }
+    .funnel-count { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    .funnel-note { font-size: 11px; color: var(--c-sold); margin: 2px 0 0 88px; }
+
+    /* ── Gaji ── */
+    .gaji { padding: 16px 14px; }
+    .period-switch { display: flex; gap: 6px; margin-bottom: 18px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
+    .period-btn { flex: 1; padding: 9px; background: transparent; border: none; border-radius: 7px; color: var(--muted); font-size: 13px; font-weight: 600; transition: background .15s ease, color .15s ease; }
+    .period-btn.active { background: var(--primary); color: #fff; }
+
+    .gaji-total { background: linear-gradient(135deg, #1f2547, #181d38); border: 1px solid var(--border); border-radius: 14px; padding: 18px; text-align: center; margin-bottom: 18px; }
+    .gaji-total .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .gaji-total .v { font-size: 34px; font-weight: 800; color: #fff; margin-top: 4px; letter-spacing: -0.5px; }
+    .gaji-total .c { font-size: 12px; color: var(--muted-2); margin-top: 4px; }
+
+    .worker-card { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 9px; }
+    .worker-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .worker-info { flex: 1; }
+    .worker-name { font-size: 15px; font-weight: 700; color: #fff; }
+    .worker-role { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .worker-amt { font-size: 18px; font-weight: 800; color: var(--c-listed); }
+
+    .breakdown { margin-top: 16px; }
+    .breakdown-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .breakdown-item:last-child { border-bottom: none; }
+    .breakdown-item .lbl { color: var(--muted); }
+    .breakdown-item .lbl .flag { color: var(--c-flagged); font-size: 11px; margin-left: 6px; }
+    .breakdown-item .amt { color: var(--text); font-weight: 600; font-family: ui-monospace, monospace; }
+
+    /* ── Bottom nav ── */
+    .nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+      display: flex; background: rgba(20,20,36,0.96);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
     }
-    .empty, .loading {
-      text-align: center;
-      padding: 40px 20px;
-      color: #555;
-      font-size: 14px;
-    }
+    .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; color: var(--muted-2); padding: 4px; }
+    .nav-btn .ico { font-size: 19px; line-height: 1; }
+    .nav-btn .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
+    .nav-btn.active { color: var(--primary); }
+
+    /* ── Toast ── */
     .toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #2a2a4a;
-      color: #e0e0e0;
-      padding: 10px 22px;
-      border-radius: 20px;
-      font-size: 13px;
-      display: none;
-      z-index: 999;
-      white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(8px);
+      background: #2a2a4a; color: var(--text); padding: 11px 20px; border-radius: 22px;
+      font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease; z-index: 999;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5); max-width: 90vw; text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
     }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>📧 Oneestore Gmail Generator</h1>
-  <div class="header-actions">
-    <button class="btn-generate" onclick="generateEmail()">⚡ Generate Email</button>
-    <button class="btn-refresh" onclick="loadList()" title="Refresh">🔄</button>
-    <span class="counter" id="counter">—</span>
+  <div class="header-top">
+    <span class="brand">Oneestore<span class="dot">.</span>Ops</span>
+    <span class="view-label" id="viewLabel">Pipeline</span>
   </div>
-  <div class="search-wrap">
-    <input class="search" type="text" id="search" placeholder="🔍 Cari email / player / seller..." oninput="renderList()">
-  </div>
+  <div class="stage-tabs" id="stageTabs"></div>
 </div>
 
-<div class="list" id="list">
-  <div class="loading">Loading...</div>
+<!-- ════════ PIPELINE VIEW ════════ -->
+<div class="view active" id="view-pipeline">
+  <div class="toolbar" id="pipelineToolbar"></div>
+  <div class="list" id="list"><div class="loading">Loading…</div></div>
 </div>
+
+<!-- ════════ DASHBOARD VIEW ════════ -->
+<div class="view" id="view-dashboard">
+  <div class="dash" id="dash"><div class="loading">Loading…</div></div>
+</div>
+
+<!-- ════════ GAJI VIEW ════════ -->
+<div class="view" id="view-gaji">
+  <div class="gaji" id="gaji"><div class="loading">Loading…</div></div>
+</div>
+
+<!-- ════════ BOTTOM NAV ════════ -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-pipeline" onclick="switchView('pipeline')">
+    <span class="ico">🗂️</span><span class="lbl">Pipeline</span>
+  </button>
+  <button class="nav-btn" id="nav-dashboard" onclick="switchView('dashboard')">
+    <span class="ico">📊</span><span class="lbl">Dashboard</span>
+  </button>
+  <button class="nav-btn" id="nav-gaji" onclick="switchView('gaji')">
+    <span class="ico">💰</span><span class="lbl">Gaji</span>
+  </button>
+</nav>
 
 <div class="toast" id="toast"></div>
 
 <script>
-  const DOMAIN = 'onee.store';
+  const DOMAIN       = 'onee.store';
   const API_LIST     = '/api/list';
   const API_GENERATE = '/api/generate';
-  const API_UPDATE   = '/api/update';
+  const API_UPDATE   = '/api/update'; // forward apa-apa action
 
-  let allData = [];
+  const STAGES = ['GENERATE','CHECKING','EDITING','LISTED','SOLD','FLAGGED'];
+  const STAGE_META = {
+    GENERATE: { label:'Generate', color:'var(--c-generate)', emoji:'✨' },
+    CHECKING: { label:'Checking', color:'var(--c-checking)', emoji:'🔍' },
+    EDITING:  { label:'Editing',  color:'var(--c-editing)',  emoji:'✏️' },
+    LISTED:   { label:'Listed',   color:'var(--c-listed)',   emoji:'🏷️' },
+    SOLD:     { label:'Sold',     color:'var(--c-sold)',     emoji:'💰' },
+    FLAGGED:  { label:'Flagged',  color:'var(--c-flagged)',  emoji:'🚩' }
+  };
+  const ADVANCE = {
+    GENERATE: { label:'Hantar ke Checking', cls:'to-checking' },
+    CHECKING: { label:'Pass ke Editing',    cls:'to-editing'  },
+    EDITING:  { label:'Pass ke Listed',     cls:'to-listed'   }
+  };
+  const WORKER_ROLE = { Dekwan:'Checking · Android', Korer:'Editing · iOS', Danial:'Admin · Owner' };
 
-  /* ── Random name ── */
+  let allData     = [];
+  let activeView  = 'pipeline';
+  let activeStage = 'GENERATE';
+  let gajiPeriod  = 'today';
+
+  /* ════════ View switching ════════ */
+  function switchView(view) {
+    activeView = view;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('nav-' + view).classList.add('active');
+    document.getElementById('viewLabel').textContent = view.charAt(0).toUpperCase() + view.slice(1);
+    document.getElementById('stageTabs').style.display = (view === 'pipeline') ? 'flex' : 'none';
+    if (view === 'dashboard') loadDashboard();
+    if (view === 'gaji')      loadGaji();
+  }
+
+  /* ════════ Random name (safety net) ════════ */
   function generateName() {
     const c = 'bcdfghjklmnpqrstvwxyz', v = 'aeiou';
     let s = '';
-    for (let i = 0; i < 3; i++) {
-      s += c[Math.floor(Math.random() * c.length)];
-      s += v[Math.floor(Math.random() * v.length)];
-    }
-    return s + (Math.floor(Math.random() * 90) + 10) + 'EF';
+    for (let i = 0; i < 3; i++) { s += c[Math.floor(Math.random()*c.length)]; s += v[Math.floor(Math.random()*v.length)]; }
+    return s + (Math.floor(Math.random()*90)+10) + 'EF';
   }
 
-  /* ── Load list ── */
+  /* ════════ Load accounts ════════ */
   async function loadList() {
-    document.getElementById('list').innerHTML = '<div class="loading">Loading...</div>';
+    document.getElementById('list').innerHTML = '<div class="loading">Loading…</div>';
     try {
       const res  = await fetch(API_LIST);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
       allData = json.data || [];
-      renderList();
+      renderStageTabs();
+      renderPipeline();
     } catch (e) {
-      document.getElementById('list').innerHTML = '<div class="empty">❌ ' + e.message + '</div>';
+      document.getElementById('list').innerHTML = '<div class="empty">Tak boleh load.<br>' + esc(e.message) + '</div>';
     }
   }
 
-  /* ── Render ── */
-  function renderList() {
-    const q = document.getElementById('search').value.toLowerCase();
-    const filtered = q
-      ? allData.filter(d =>
-          (d.email||'').toLowerCase().includes(q) ||
-          (d.playerList||'').toLowerCase().includes(q) ||
-          (d.seller||'').toLowerCase().includes(q))
-      : allData;
+  /* ════════ Stage helpers ════════ */
+  function stageOf(d) { return String(d.stage || 'GENERATE').toUpperCase().trim(); }
+  function countStage(s) { return allData.filter(d => stageOf(d) === s).length; }
 
-    const n = allData.length;
-    document.getElementById('counter').textContent = n + ' email' + (n !== 1 ? 's' : '');
-
-    if (filtered.length === 0) {
-      document.getElementById('list').innerHTML = '<div class="empty">Takde entry lagi 📭</div>';
-      return;
-    }
-
-    document.getElementById('list').innerHTML = filtered.map(d => {
-      const idx = allData.indexOf(d);
-      const sc  = (d.status || 'available').toLowerCase();
-      const linked = !!(d.whatsapp);
-      return `
-        <div class="card ${sc}" id="card-${idx}">
-          <div class="row">
-            <span class="email-text">${esc(d.email)}</span>
-            <button class="copy-btn" onclick="doCopy('${ea(d.email)}',this)">Copy</button>
-          </div>
-          <div class="row">
-            <span class="pass-text">${esc(d.password)}</span>
-            <button class="copy-btn" onclick="doCopy('${ea(d.password)}',this)">Copy</button>
-          </div>
-          <div class="meta">${esc(d.tarikh||'')}</div>
-          <div class="fields">
-            <div class="field">
-              <label>Seller</label>
-              <input type="text" id="seller-${idx}" value="${ea(d.seller||'')}">
-            </div>
-            <div class="field">
-              <label>Harga (RM)</label>
-              <input type="text" id="harga-${idx}" value="${ea(d.harga||'')}">
-            </div>
-            <div class="field full">
-              <label>Player List</label>
-              <input type="text" id="playerList-${idx}" value="${ea(d.playerList||'')}">
-            </div>
-            <div class="field full">
-              <label>Status</label>
-              <select id="status-${idx}">
-                <option value="AVAILABLE" ${d.status==='AVAILABLE'?'selected':''}>✅ AVAILABLE</option>
-                <option value="SOLD"      ${d.status==='SOLD'?'selected':''}>💰 SOLD</option>
-                <option value="FLAGGED"   ${d.status==='FLAGGED'?'selected':''}>🚩 FLAGGED</option>
-              </select>
-            </div>
-          </div>
-          <div class="card-footer">
-            <button class="btn-save" onclick="saveCard(${idx})">💾 Save</button>
-            <button class="btn-del"  onclick="delCard(${idx})">🗑️</button>
-          </div>
-          <div class="sale-section">
-            <div class="field full">
-              <label>Customer WhatsApp</label>
-              <input type="text" id="whatsapp-${idx}" value="${ea(d.whatsapp||'')}" placeholder="011-2345678 atau 60123456789">
-            </div>
-            <button class="btn-sale ${linked ? 'linked' : ''}" onclick="confirmSale(${idx})">
-              ${linked ? '🔄 Re-link WhatsApp' : '✅ Sale Confirmed — Link WhatsApp'}
-            </button>
-            ${d.linkedAt ? `<div class="linked-note">🔗 Linked: ${esc(d.whatsapp||'')} · ${esc(d.linkedAt)}</div>` : ''}
-          </div>
-        </div>`;
+  /* ════════ Render stage tabs ════════ */
+  function renderStageTabs() {
+    document.getElementById('stageTabs').innerHTML = STAGES.map(s => {
+      const m = STAGE_META[s];
+      const active = (s === activeStage);
+      const style = active ? `background:${m.color};border-color:${m.color};` : '';
+      return `<button class="stage-tab ${active?'active':''}" style="${style}" onclick="selectStage('${s}')">
+        <span>${m.emoji} ${m.label}</span>
+        <span class="badge">${countStage(s)}</span>
+      </button>`;
     }).join('');
   }
 
-  /* ── Generate ── */
+  function selectStage(s) {
+    activeStage = s;
+    renderStageTabs();
+    renderPipeline();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ════════ Render pipeline (toolbar + cards) ════════ */
+  function renderPipeline() {
+    // toolbar: generate button only on GENERATE, search always
+    const tb = document.getElementById('pipelineToolbar');
+    tb.innerHTML =
+      (activeStage === 'GENERATE'
+        ? `<button class="btn-generate" onclick="generateEmail()">⚡ Generate Email Baru</button>` : '') +
+      `<input class="search" type="text" id="search" placeholder="🔍 Cari email / player / supplier…" value="${ea(currentSearch)}" oninput="onSearch(this.value)">`;
+
+    const q = currentSearch.toLowerCase();
+    let rows = allData.filter(d => stageOf(d) === activeStage);
+    if (q) rows = rows.filter(d =>
+      (d.email||'').toLowerCase().includes(q) ||
+      (d.playerList||'').toLowerCase().includes(q) ||
+      (d.supplier||d.seller||'').toLowerCase().includes(q));
+
+    const m = STAGE_META[activeStage];
+    if (rows.length === 0) {
+      document.getElementById('list').innerHTML =
+        `<div class="empty">${m.emoji} Takde akaun di <b>${m.label}</b>${q?' untuk carian ni':''}.</div>`;
+      return;
+    }
+    document.getElementById('list').innerHTML = rows.map(d => renderCard(d, allData.indexOf(d))).join('');
+  }
+
+  let currentSearch = '';
+  function onSearch(v) { currentSearch = v; renderPipeline(); }
+
+  /* ════════ Card template (stage-aware) ════════ */
+  function renderCard(d, idx) {
+    const s = stageOf(d);
+    const m = STAGE_META[s];
+    const sup = d.supplier || d.seller || '';
+    const needsPrice = (s === 'LISTED' && !String(d.harga||'').trim());
+
+    // editable block (all stages — corrections allowed)
+    const editable = `
+      <div class="fields">
+        <div class="field"><label>Supplier</label><input type="text" id="supplier-${idx}" value="${ea(sup)}"></div>
+        <div class="field"><label>Harga (RM)</label><input type="text" id="harga-${idx}" value="${ea(d.harga||'')}" placeholder="${needsPrice?'set harga…':''}"></div>
+        <div class="field full"><label>Player List</label><input type="text" id="playerList-${idx}" value="${ea(d.playerList||'')}"></div>
+      </div>
+      <div class="card-footer">
+        <button class="btn-save" onclick="saveCard(${idx})">💾 Save</button>
+        <button class="btn-del" onclick="delCard(${idx})">🗑️</button>
+      </div>`;
+
+    // stage action
+    let action = '';
+    if (s === 'GENERATE') {
+      const a = ADVANCE.GENERATE;
+      action = `<div class="actions"><button class="btn-advance ${a.cls}" onclick="advanceStage(${idx})">${a.label} →</button></div>`;
+    } else if (s === 'CHECKING' || s === 'EDITING') {
+      const a = ADVANCE[s];
+      action = `<div class="actions">
+        <button class="btn-advance ${a.cls}" onclick="advanceStage(${idx})">${a.label} →</button>
+        <button class="btn-flag" onclick="flagAccount(${idx})">🚩 Tak Safe</button>
+      </div>`;
+    } else if (s === 'LISTED') {
+      action = `<div class="sale">
+        ${needsPrice ? '<div class="sale-warn">⚠️ Set harga dulu untuk revenue tepat.</div>' : ''}
+        <div class="field full"><label>Customer WhatsApp</label>
+          <input type="text" id="whatsapp-${idx}" value="${ea(d.whatsapp||'')}" placeholder="011-2345678 atau 60123456789"></div>
+        <div class="field full"><label>Siapa serah?</label>
+          <select id="saleworker-${idx}" onchange="toggleSaleOther(${idx})">
+            <option value="">— Pilih nama —</option>
+            <option value="Danial">Danial</option>
+            <option value="Dekwan">Dekwan</option>
+            <option value="__other__">Lain…</option>
+          </select></div>
+        <div class="field full" id="saleother-wrap-${idx}" style="display:none">
+          <label>Nama lain</label><input type="text" id="saleworker-other-${idx}" placeholder="Taip nama"></div>
+        <button class="btn-sale" onclick="confirmSale(${idx})">✅ Sahkan Jualan → Sold</button>
+      </div>`;
+    } else if (s === 'SOLD') {
+      action = `<div class="info-note sold">
+        💰 Terjual${d.linkedAt ? ' · ' + esc(d.linkedAt) : ''}
+        ${d.whatsapp ? '<br>📲 <span class="mono">' + esc(d.whatsapp) + '</span> — dah link ke OTP pipeline' : ''}
+      </div>`;
+    } else if (s === 'FLAGGED') {
+      action = `<div class="info-note flagged">🚩 Tak safe — akaun ada link (eFootball / Game Center).</div>`;
+    }
+
+    return `
+      <div class="card s-${s.toLowerCase()} ${needsPrice?'needs-price':''}" id="card-${idx}">
+        <div class="row">
+          <span class="email-text">${esc(d.email)}</span>
+          <button class="copy-btn" onclick="doCopy('${ea(d.email)}',this)">Copy</button>
+        </div>
+        <div class="row">
+          <span class="pass-text">${esc(d.password)}</span>
+          <button class="copy-btn" onclick="doCopy('${ea(d.password)}',this)">Copy</button>
+        </div>
+        <div class="meta-row">
+          <span class="stage-pill" style="background:${hexFade(s)};color:${m.color}">
+            <span class="ico" style="background:${m.color}"></span>${m.label}
+          </span>
+          <span class="meta-date">${esc(d.tarikh||'')}</span>
+        </div>
+        ${editable}
+        ${action}
+      </div>`;
+  }
+
+  function hexFade(stage) {
+    const map = { GENERATE:'rgba(92,107,192,0.15)', CHECKING:'rgba(41,182,246,0.15)', EDITING:'rgba(171,71,188,0.15)',
+                  LISTED:'rgba(67,160,71,0.15)', SOLD:'rgba(255,167,38,0.15)', FLAGGED:'rgba(229,57,53,0.15)' };
+    return map[stage] || 'rgba(255,255,255,0.08)';
+  }
+
+  function toggleSaleOther(idx) {
+    const sel = document.getElementById('saleworker-' + idx).value;
+    document.getElementById('saleother-wrap-' + idx).style.display = (sel === '__other__') ? 'block' : 'none';
+  }
+
+  /* ════════ Generate ════════ */
   async function generateEmail() {
     const email = generateName() + '@' + DOMAIN;
     try {
-      const res  = await fetch(API_GENERATE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      const json = await res.json();
-      if (!json.ok) { toast('❌ ' + json.error); return; }
+      const json = await apiPost(API_GENERATE, { email });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
       allData.unshift(json.data);
-      renderList();
-      toast('✅ ' + email);
-    } catch (e) { toast('❌ ' + e.message); }
+      activeStage = 'GENERATE';
+      renderStageTabs();
+      renderPipeline();
+      toast('✨ ' + email);
+    } catch (e) { toast('Gagal: ' + e.message); }
   }
 
-  /* ── Save ── */
+  /* ════════ Save (corrections) ════════ */
   async function saveCard(idx) {
     const d = allData[idx];
     const payload = {
       action:     'update',
       email:      d.email,
-      seller:     document.getElementById('seller-'     + idx).value,
-      harga:      document.getElementById('harga-'      + idx).value,
-      playerList: document.getElementById('playerList-' + idx).value,
-      status:     document.getElementById('status-'     + idx).value
+      supplier:   val('supplier-'   + idx),
+      harga:      val('harga-'      + idx),
+      playerList: val('playerList-' + idx)
     };
     try {
-      const res  = await fetch(API_UPDATE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const json = await res.json();
-      if (!json.ok) { toast('❌ ' + json.error); return; }
-      // Preserve linking fields (update handler tak pulangkan whatsapp/linkedAt)
-      const prevWa = allData[idx].whatsapp;
-      const prevLa = allData[idx].linkedAt;
-      allData[idx] = json.data;
-      if (allData[idx].whatsapp === undefined) allData[idx].whatsapp = prevWa;
-      if (allData[idx].linkedAt === undefined) allData[idx].linkedAt = prevLa;
-      renderList();
-      toast('✅ Saved');
-    } catch (e) { toast('❌ ' + e.message); }
+      const json = await apiPost(API_UPDATE, payload);
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      mergeRow(idx, json.data);
+      renderStageTabs();
+      renderPipeline();
+      toast('💾 Disimpan');
+    } catch (e) { toast('Gagal: ' + e.message); }
   }
 
-  /* ── Sale Confirmed (link WhatsApp → Sheet + D1 OTP pipeline) ── */
+  /* ════════ Advance stage (auto next) ════════ */
+  async function advanceStage(idx) {
+    const d = allData[idx];
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      allData[idx] = json.data.row;
+      renderStageTabs();
+      renderPipeline();
+      toast(commissionToast('→ ' + STAGE_META[json.data.to].label, json.data.commission));
+    } catch (e) { toast('Gagal: ' + e.message); }
+  }
+
+  /* ════════ Flag (tak safe) ════════ */
+  async function flagAccount(idx) {
+    const d = allData[idx];
+    if (!confirm('Flag akaun ni sebagai tak safe?\n\n' + d.email + '\n\nAkaun akan masuk Flagged (terminal).')) return;
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email, toStage: 'FLAGGED' });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      allData[idx] = json.data.row;
+      renderStageTabs();
+      renderPipeline();
+      toast(commissionToast('🚩 Flagged', json.data.commission));
+    } catch (e) { toast('Gagal: ' + e.message); }
+  }
+
+  /* ════════ Sale Confirmed (LISTED → SOLD + link WhatsApp + komisen) ════════ */
   async function confirmSale(idx) {
     const d  = allData[idx];
-    const wa = document.getElementById('whatsapp-' + idx).value.trim();
-    if (!wa) { toast('❌ Isi nombor WhatsApp customer dulu'); return; }
-    if (!confirm('Confirm sale?\n\n' + d.email + '\nWhatsApp: ' + wa + '\n\nStatus → SOLD. Nombor akan didaftar ke OTP pipeline.')) return;
+    const wa = val('whatsapp-' + idx).trim();
+    let worker = document.getElementById('saleworker-' + idx).value;
+    if (worker === '__other__') worker = val('saleworker-other-' + idx).trim();
+
+    if (!wa)     { toast('Isi nombor WhatsApp customer dulu'); return; }
+    if (!worker) { toast('Pilih / taip siapa serah dulu'); return; }
+    if (!confirm('Sahkan jualan?\n\n' + d.email + '\nWhatsApp: ' + wa + '\nSerah oleh: ' + worker +
+                 '\n\nStage → Sold. Nombor didaftar ke OTP pipeline. ' + worker + ' dapat +RM2.00.')) return;
     try {
-      const res  = await fetch(API_UPDATE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'assignSale', email: d.email, whatsapp: wa })
-      });
-      const json = await res.json();
-      if (!json.ok) { toast('❌ ' + json.error); return; }
-      allData[idx].whatsapp = json.data.whatsapp;   // nombor dah di-normalize (60XXXXXXXXX)
+      const json = await apiPost(API_UPDATE, { action: 'assignSale', email: d.email, whatsapp: wa, worker });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      // refresh row from server (assignSale tak pulangkan full row → patch fields)
+      allData[idx].whatsapp = json.data.whatsapp;
       allData[idx].linkedAt = json.data.linkedAt;
-      allData[idx].status   = json.data.status;     // SOLD
-      renderList();
-      toast('✅ Sale confirmed · ' + json.data.whatsapp);
-    } catch (e) { toast('❌ ' + e.message); }
+      allData[idx].stage    = json.data.stage; // SOLD
+      allData[idx].status   = json.data.stage;
+      renderStageTabs();
+      renderPipeline();
+      const c = json.data.saleCommission;
+      toast((c && c.logged) ? `✅ Jual · ${c.worker} +RM${Number(c.amount).toFixed(2)}` : '✅ Terjual');
+    } catch (e) { toast('Gagal: ' + e.message); }
   }
 
-  /* ── Delete ── */
+  /* ════════ Delete ════════ */
   async function delCard(idx) {
-    if (!confirm('Delete ' + allData[idx].email + '?')) return;
+    if (!confirm('Padam ' + allData[idx].email + '?')) return;
     try {
-      const res  = await fetch(API_UPDATE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', email: allData[idx].email })
-      });
-      const json = await res.json();
-      if (!json.ok) { toast('❌ ' + json.error); return; }
+      const json = await apiPost(API_UPDATE, { action: 'delete', email: allData[idx].email });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
       allData.splice(idx, 1);
-      renderList();
-      toast('🗑️ Deleted');
-    } catch (e) { toast('❌ ' + e.message); }
+      renderStageTabs();
+      renderPipeline();
+      toast('🗑️ Dipadam');
+    } catch (e) { toast('Gagal: ' + e.message); }
   }
 
-  /* ── Copy ── */
+  /* ════════ Dashboard ════════ */
+  async function loadDashboard() {
+    document.getElementById('dash').innerHTML = '<div class="loading">Loading…</div>';
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'dashboard' });
+      if (!json.ok) throw new Error(json.error);
+      renderDashboard(json.data);
+    } catch (e) {
+      document.getElementById('dash').innerHTML = '<div class="empty">Tak boleh load.<br>' + esc(e.message) + '</div>';
+    }
+  }
+
+  function renderDashboard(d) {
+    const p = d.pipeline || {};
+    const order = ['GENERATE','CHECKING','EDITING','LISTED','SOLD','FLAGGED'];
+    const max = Math.max(1, ...order.map(s => p[s] || 0));
+    const funnel = order.map(s => {
+      const m = STAGE_META[s];
+      const c = p[s] || 0;
+      const w = Math.round((c / max) * 100);
+      const note = (s === 'LISTED' && d.awaitingPrice)
+        ? `<div class="funnel-note">↳ ${d.awaitingPrice} belum ada harga</div>` : '';
+      return `<div class="funnel-row">
+          <span class="funnel-name">${m.label}</span>
+          <span class="funnel-track"><span class="funnel-bar" style="width:${w}%;background:${m.color}"></span>
+            <span class="funnel-count">${c}</span></span>
+        </div>${note}`;
+    }).join('');
+
+    document.getElementById('dash').innerHTML = `
+      <div class="dash-section-label">Jualan</div>
+      <div class="sales-grid">
+        <div class="sales-card"><div class="k">Hari Ni</div><div class="v">${d.sales.today}</div><div class="sub">${rm(d.revenue.today)}</div></div>
+        <div class="sales-card"><div class="k">Bulan Ni</div><div class="v">${d.sales.month}</div><div class="sub">${rm(d.revenue.month)}</div></div>
+      </div>
+      <div class="dash-section-label">Pipeline — di mana akaun sekarang</div>
+      <div class="funnel">${funnel}</div>
+    `;
+  }
+
+  /* ════════ Gaji ════════ */
+  function setGajiPeriod(p) { gajiPeriod = p; loadGaji(); }
+
+  async function loadGaji() {
+    document.getElementById('gaji').innerHTML = '<div class="loading">Loading…</div>';
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'gaji', period: gajiPeriod });
+      if (!json.ok) throw new Error(json.error);
+      renderGaji(json.data);
+    } catch (e) {
+      document.getElementById('gaji').innerHTML = '<div class="empty">Tak boleh load.<br>' + esc(e.message) + '</div>';
+    }
+  }
+
+  function renderGaji(d) {
+    const periods = [['today','Hari Ni'],['month','Bulan Ni'],['all','Semua']];
+    const switcher = `<div class="period-switch">` + periods.map(([k,l]) =>
+      `<button class="period-btn ${gajiPeriod===k?'active':''}" onclick="setGajiPeriod('${k}')">${l}</button>`).join('') + `</div>`;
+
+    const totals = d.totals || {};
+    const names = Object.keys(totals).sort((a,b) => totals[b] - totals[a]);
+    const palette = { Dekwan:'var(--c-checking)', Korer:'var(--c-editing)', Danial:'var(--c-sold)' };
+
+    const workers = names.length
+      ? names.map(n => `
+        <div class="worker-card">
+          <div class="worker-avatar" style="background:${palette[n]||'var(--primary)'}">${esc(n.charAt(0).toUpperCase())}</div>
+          <div class="worker-info">
+            <div class="worker-name">${esc(n)}</div>
+            <div class="worker-role">${esc(WORKER_ROLE[n] || 'Pekerja')}</div>
+          </div>
+          <div class="worker-amt">${rm(totals[n])}</div>
+        </div>`).join('')
+      : `<div class="empty">Takde komisen direkod untuk tempoh ni.</div>`;
+
+    const be = d.byEvent || {};
+    const breakdown = `
+      <div class="dash-section-label" style="margin-top:20px">Pecahan ikut kerja</div>
+      <div class="breakdown">
+        <div class="breakdown-item"><span class="lbl">Checking <span class="flag">flag: ${rm(be.CHECKING_FLAG)}</span></span><span class="amt">${rm(be.CHECKING)}</span></div>
+        <div class="breakdown-item"><span class="lbl">Editing <span class="flag">flag: ${rm(be.EDITING_FLAG)}</span></span><span class="amt">${rm(be.EDITING)}</span></div>
+        <div class="breakdown-item"><span class="lbl">Sale (serah akaun)</span><span class="amt">${rm(be.SALE)}</span></div>
+      </div>`;
+
+    document.getElementById('gaji').innerHTML = `
+      ${switcher}
+      <div class="gaji-total">
+        <div class="k">Jumlah Komisen</div>
+        <div class="v">${rm(d.grandTotal)}</div>
+        <div class="c">${d.count} transaksi</div>
+      </div>
+      ${workers}
+      ${breakdown}
+    `;
+  }
+
+  /* ════════ Shared API helper ════════ */
+  async function apiPost(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  }
+
+  /* ════════ Row merge (preserve link fields if absent) ════════ */
+  function mergeRow(idx, fresh) {
+    const prev = allData[idx];
+    if (fresh.whatsapp === undefined) fresh.whatsapp = prev.whatsapp;
+    if (fresh.linkedAt === undefined) fresh.linkedAt = prev.linkedAt;
+    allData[idx] = fresh;
+  }
+
+  function commissionToast(prefix, c) {
+    if (c && c.logged) return `${prefix} · ${c.worker} +RM${Number(c.amount).toFixed(2)}`;
+    return prefix;
+  }
+
+  /* ════════ Copy ════════ */
   function doCopy(text, btn) {
     navigator.clipboard.writeText(text).then(() => {
       const orig = btn.textContent;
-      btn.textContent = '✓';
-      btn.classList.add('ok');
-      setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 1500);
+      btn.textContent = '✓'; btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 1400);
     });
   }
 
-  /* ── Toast ── */
+  /* ════════ Toast ════════ */
   function toast(msg) {
     const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.style.display = 'block';
+    el.textContent = msg; el.classList.add('show');
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => { el.style.display = 'none'; }, 2500);
+    toast._t = setTimeout(() => el.classList.remove('show'), 2600);
   }
 
-  /* ── Escape helpers ── */
-  function esc(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function ea(s)   { return String(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  /* ════════ Utils ════════ */
+  function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+  function rm(n) { n = Number(n||0); return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function ea(s)  { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+  /* ════════ Init ════════ */
   loadList();
 </script>
 </body>
