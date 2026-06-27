@@ -23,6 +23,7 @@
       --c-listed:   #43a047;
       --c-sold:     #ffa726;
       --c-flagged:  #e53935;
+      --c-limit:    #607d8b;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -108,6 +109,7 @@
     .card.s-listed   { border-left-color: var(--c-listed); }
     .card.s-sold     { border-left-color: var(--c-sold); opacity: 0.92; }
     .card.s-flagged  { border-left-color: var(--c-flagged); opacity: 0.85; }
+    .card.s-limit    { border-left-color: var(--c-limit); }
     .card.needs-price { box-shadow: inset 0 0 0 1px rgba(255,167,38,0.25); }
 
     .row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
@@ -126,6 +128,10 @@
       padding: 3px 8px; border-radius: 6px;
     }
     .stage-pill .ico { width: 6px; height: 6px; border-radius: 50%; }
+    .silog-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+    }
     .meta-date { font-size: 11px; color: var(--muted-2); }
 
     .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 9px; }
@@ -134,6 +140,12 @@
       width: 100%; background: var(--surface-2); border: 1px solid var(--border-2);
       border-radius: 6px; color: var(--text); padding: 7px 8px; font-size: 13px;
     }
+    .notes-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 6px; color: var(--text); padding: 7px 8px; font-size: 13px;
+      resize: vertical; font-family: inherit; line-height: 1.4;
+    }
+    .notes-input::placeholder { color: var(--muted-2); }
     .field.full { grid-column: 1 / -1; }
 
     .card-footer { display: flex; gap: 6px; margin-bottom: 4px; }
@@ -157,6 +169,13 @@
       border: 1px solid #5a2226; border-radius: 9px; font-size: 13px; font-weight: 600;
     }
     .btn-flag:active { background: #2a1012; }
+    .btn-limit {
+      padding: 11px 14px; background: #1e2730; color: #90a4ae;
+      border: 1px solid #37474f; border-radius: 9px; font-size: 13px; font-weight: 600;
+    }
+    .btn-limit:active { background: #161d24; }
+    .actions.stack { flex-direction: column; }
+    .actions-row { display: flex; gap: 6px; }
 
     /* ── Sale section (LISTED) ── */
     .sale { margin-top: 10px; padding-top: 11px; border-top: 1px dashed var(--border); }
@@ -176,6 +195,7 @@
     }
     .info-note.sold { background: rgba(255,167,38,0.08); color: #ffcc80; }
     .info-note.flagged { background: rgba(229,57,53,0.08); color: #ef9a9a; }
+    .info-note.limit { background: rgba(96,125,139,0.1); color: #b0bec5; }
     .info-note .mono { font-family: ui-monospace, monospace; }
 
     /* ── Empty / loading ── */
@@ -302,14 +322,15 @@
   const API_GENERATE = '/api/generate';
   const API_UPDATE   = '/api/update'; // forward apa-apa action
 
-  const STAGES = ['GENERATE','CHECKING','EDITING','LISTED','SOLD','FLAGGED'];
+  const STAGES = ['GENERATE','CHECKING','EDITING','LISTED','SOLD','FLAGGED','LIMIT'];
   const STAGE_META = {
     GENERATE: { label:'Generate', color:'var(--c-generate)', emoji:'✨' },
     CHECKING: { label:'Checking', color:'var(--c-checking)', emoji:'🔍' },
     EDITING:  { label:'Editing',  color:'var(--c-editing)',  emoji:'✏️' },
     LISTED:   { label:'Listed',   color:'var(--c-listed)',   emoji:'🏷️' },
     SOLD:     { label:'Sold',     color:'var(--c-sold)',     emoji:'💰' },
-    FLAGGED:  { label:'Flagged',  color:'var(--c-flagged)',  emoji:'🚩' }
+    FLAGGED:  { label:'Flagged',  color:'var(--c-flagged)',  emoji:'🚩' },
+    LIMIT:    { label:'Login Habis', color:'var(--c-limit)', emoji:'🔒' }
   };
   const ADVANCE = {
     GENERATE: { label:'Hantar ke Checking', cls:'to-checking' },
@@ -419,11 +440,17 @@
     const needsPrice = (s === 'LISTED' && !String(d.harga||'').trim());
 
     // editable block (all stages — corrections allowed)
+    const hargaBeliField = (s === 'GENERATE')
+      ? `<div class="field"><label>Harga Beli (modal)</label><input type="text" id="hargabeli-${idx}" value="${ea(d.hargaBeli||'')}" placeholder="cth 30"></div>`
+      : '';
     const editable = `
       <div class="fields">
         <div class="field"><label>Supplier</label><input type="text" id="supplier-${idx}" value="${ea(sup)}"></div>
-        <div class="field"><label>Harga (RM)</label><input type="text" id="harga-${idx}" value="${ea(d.harga||'')}" placeholder="${needsPrice?'set harga…':''}"></div>
+        ${hargaBeliField}
+        <div class="field"><label>Harga Jual (RM)</label><input type="text" id="harga-${idx}" value="${ea(d.harga||'')}" placeholder="${needsPrice?'set harga…':''}"></div>
+        <div class="field"><label>Silog (baki login)</label><input type="number" inputmode="numeric" id="silog-${idx}" value="${ea(d.silog===''?'':d.silog)}" placeholder="10"></div>
         <div class="field full"><label>Player List</label><input type="text" id="playerList-${idx}" value="${ea(d.playerList||'')}"></div>
+        <div class="field full"><label>Notes</label><textarea id="notes-${idx}" rows="2" class="notes-input" placeholder="cth: silog habis, problem login, customer minta…">${esc(d.notes||'')}</textarea></div>
       </div>
       <div class="card-footer">
         <button class="btn-save" onclick="saveCard(${idx})">💾 Save</button>
@@ -434,8 +461,20 @@
     let action = '';
     if (s === 'GENERATE') {
       const a = ADVANCE.GENERATE;
-      action = `<div class="actions"><button class="btn-advance ${a.cls}" onclick="advanceStage(${idx})">${a.label} →</button></div>`;
-    } else if (s === 'CHECKING' || s === 'EDITING') {
+      action = `<div class="actions">
+        <button class="btn-advance ${a.cls}" onclick="advanceStage(${idx})">${a.label} →</button>
+        <button class="btn-limit" onclick="parkLimit(${idx})">🔒 Login Habis</button>
+      </div>`;
+    } else if (s === 'CHECKING') {
+      const a = ADVANCE[s];
+      action = `<div class="actions stack">
+        <button class="btn-advance ${a.cls}" onclick="advanceStage(${idx})">${a.label} →</button>
+        <div class="actions-row">
+          <button class="btn-flag" style="flex:1" onclick="flagAccount(${idx})">🚩 Tak Safe</button>
+          <button class="btn-limit" style="flex:1" onclick="parkLimit(${idx})">🔒 Login Habis</button>
+        </div>
+      </div>`;
+    } else if (s === 'EDITING') {
       const a = ADVANCE[s];
       action = `<div class="actions">
         <button class="btn-advance ${a.cls}" onclick="advanceStage(${idx})">${a.label} →</button>
@@ -457,13 +496,17 @@
           <label>Nama lain</label><input type="text" id="saleworker-other-${idx}" placeholder="Taip nama"></div>
         <button class="btn-sale" onclick="confirmSale(${idx})">✅ Sahkan Jualan → Sold</button>
       </div>`;
+    } else if (s === 'LIMIT') {
+      action = `<div class="info-note limit">🔒 Login habis — tunggu reset awal bulan. Lepas reset, masuk balik Checking.</div>
+        <div class="actions"><button class="btn-advance to-checking" onclick="reactivateLimit(${idx})">↻ Masuk Checking →</button></div>`;
     } else if (s === 'SOLD') {
       action = `<div class="info-note sold">
         💰 Terjual${d.linkedAt ? ' · ' + esc(d.linkedAt) : ''}
         ${d.whatsapp ? '<br>📲 <span class="mono">' + esc(d.whatsapp) + '</span> — dah link ke OTP pipeline' : ''}
+        ${d.notes ? '<br>📝 ' + esc(d.notes) : ''}
       </div>`;
     } else if (s === 'FLAGGED') {
-      action = `<div class="info-note flagged">🚩 Tak safe — akaun ada link (eFootball / Game Center).</div>`;
+      action = `<div class="info-note flagged">🚩 Tak safe — akaun ada link (eFootball / Game Center).${d.notes ? '<br>📝 ' + esc(d.notes) : ''}</div>`;
     }
 
     return `
@@ -480,6 +523,7 @@
           <span class="stage-pill" style="background:${hexFade(s)};color:${m.color}">
             <span class="ico" style="background:${m.color}"></span>${m.label}
           </span>
+          ${silogBadge(d.silog)}
           <span class="meta-date">${esc(d.tarikh||'')}</span>
         </div>
         ${editable}
@@ -487,9 +531,21 @@
       </div>`;
   }
 
+  function silogBadge(silog) {
+    if (silog === '' || silog === null || silog === undefined) return '';
+    const n = Number(silog);
+    if (isNaN(n)) return '';
+    let bg, fg;
+    if (n <= 0)      { bg = 'rgba(229,57,53,0.18)';  fg = '#ef5350'; }   // habis — merah
+    else if (n <= 2) { bg = 'rgba(255,167,38,0.18)'; fg = '#ffb74d'; }   // nak habis — amber
+    else             { bg = 'rgba(67,160,71,0.16)';  fg = '#81c784'; }   // ok — hijau
+    return `<span class="silog-badge" style="background:${bg};color:${fg}">🔑 ${n}</span>`;
+  }
+
   function hexFade(stage) {
     const map = { GENERATE:'rgba(92,107,192,0.15)', CHECKING:'rgba(41,182,246,0.15)', EDITING:'rgba(171,71,188,0.15)',
-                  LISTED:'rgba(67,160,71,0.15)', SOLD:'rgba(255,167,38,0.15)', FLAGGED:'rgba(229,57,53,0.15)' };
+                  LISTED:'rgba(67,160,71,0.15)', SOLD:'rgba(255,167,38,0.15)', FLAGGED:'rgba(229,57,53,0.15)',
+                  LIMIT:'rgba(96,125,139,0.15)' };
     return map[stage] || 'rgba(255,255,255,0.08)';
   }
 
@@ -522,6 +578,12 @@
       harga:      val('harga-'      + idx),
       playerList: val('playerList-' + idx)
     };
+    const hbField = document.getElementById('hargabeli-' + idx);
+    if (hbField) payload.hargaBeli = hbField.value;
+    const noteField = document.getElementById('notes-' + idx);
+    if (noteField) payload.notes = noteField.value;
+    const silogField = document.getElementById('silog-' + idx);
+    if (silogField) payload.silog = silogField.value;
     try {
       const json = await apiPost(API_UPDATE, payload);
       if (!json.ok) { toast('Gagal: ' + json.error); return; }
@@ -556,6 +618,33 @@
       renderStageTabs();
       renderPipeline();
       toast(commissionToast('🚩 Flagged', json.data.commission));
+    } catch (e) { toast('Gagal: ' + e.message); }
+  }
+
+  /* ════════ Park ke Login Habis (silog habis) ════════ */
+  async function parkLimit(idx) {
+    const d = allData[idx];
+    if (!confirm('Park akaun ni ke Login Habis?\n\n' + d.email + '\n\nAkaun tunggu reset awal bulan. Takde komisen.')) return;
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email, toStage: 'LIMIT' });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      allData[idx] = json.data.row;
+      renderStageTabs();
+      renderPipeline();
+      toast('🔒 Park ke Login Habis');
+    } catch (e) { toast('Gagal: ' + e.message); }
+  }
+
+  /* ════════ Masuk balik Checking (lepas reset) ════════ */
+  async function reactivateLimit(idx) {
+    const d = allData[idx];
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email, toStage: 'CHECKING' });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      allData[idx] = json.data.row;
+      renderStageTabs();
+      renderPipeline();
+      toast('↻ Masuk semula Checking');
     } catch (e) { toast('Gagal: ' + e.message); }
   }
 
@@ -612,7 +701,7 @@
 
   function renderDashboard(d) {
     const p = d.pipeline || {};
-    const order = ['GENERATE','CHECKING','EDITING','LISTED','SOLD','FLAGGED'];
+    const order = ['GENERATE','CHECKING','EDITING','LISTED','SOLD','FLAGGED','LIMIT'];
     const max = Math.max(1, ...order.map(s => p[s] || 0));
     const funnel = order.map(s => {
       const m = STAGE_META[s];
@@ -628,10 +717,16 @@
     }).join('');
 
     document.getElementById('dash').innerHTML = `
-      <div class="dash-section-label">Jualan</div>
+      <div class="dash-section-label">Jualan & Untung</div>
       <div class="sales-grid">
         <div class="sales-card"><div class="k">Hari Ni</div><div class="v">${d.sales.today}</div><div class="sub">${rm(d.revenue.today)}</div></div>
         <div class="sales-card"><div class="k">Bulan Ni</div><div class="v">${d.sales.month}</div><div class="sub">${rm(d.revenue.month)}</div></div>
+      </div>
+      <div class="sales-grid">
+        <div class="sales-card"><div class="k">Untung Hari Ni</div><div class="v" style="color:var(--c-listed)">${rm(d.profit.today)}</div>
+          ${d.costMissing.today ? `<div class="sub" style="color:var(--c-sold)">${d.costMissing.today} takde harga beli</div>` : ''}</div>
+        <div class="sales-card"><div class="k">Untung Bulan Ni</div><div class="v" style="color:var(--c-listed)">${rm(d.profit.month)}</div>
+          ${d.costMissing.month ? `<div class="sub" style="color:var(--c-sold)">${d.costMissing.month} takde harga beli</div>` : ''}</div>
       </div>
       <div class="dash-section-label">Pipeline — di mana akaun sekarang</div>
       <div class="funnel">${funnel}</div>
