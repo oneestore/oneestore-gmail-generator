@@ -440,9 +440,7 @@
     const needsPrice = (s === 'LISTED' && !String(d.harga||'').trim());
 
     // editable block (all stages — corrections allowed)
-    const hargaBeliField = (s === 'GENERATE')
-      ? `<div class="field"><label>Harga Beli (modal)</label><input type="text" id="hargabeli-${idx}" value="${ea(d.hargaBeli||'')}" placeholder="cth 30"></div>`
-      : '';
+    const hargaBeliField = `<div class="field"><label>Harga Beli (modal)</label><input type="text" id="hargabeli-${idx}" value="${ea(d.hargaBeli||'')}" placeholder="cth 30"></div>`;
     const editable = `
       <div class="fields">
         <div class="field"><label>Supplier</label><input type="text" id="supplier-${idx}" value="${ea(sup)}"></div>
