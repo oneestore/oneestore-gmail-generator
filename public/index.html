@@ -146,6 +146,15 @@
       resize: vertical; font-family: inherit; line-height: 1.4;
     }
     .notes-input::placeholder { color: var(--muted-2); }
+
+    /* ── Player Converter ── */
+    .converter { background: rgba(67,160,71,0.06); border: 1px solid rgba(67,160,71,0.25); border-radius: 8px; padding: 10px; margin-bottom: 9px; }
+    .conv-label { font-size: 10px; color: #81c784; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; font-weight: 700; }
+    .conv-input { width: 100%; background: var(--bg); border: 1px solid var(--border-2); border-radius: 6px; color: var(--text); padding: 7px 8px; font-size: 13px; resize: vertical; font-family: inherit; line-height: 1.4; }
+    .conv-input::placeholder { color: var(--muted-2); }
+    .btn-convert { width: 100%; margin-top: 7px; padding: 9px; background: linear-gradient(135deg, #4cb050, #379b3c); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; }
+    .btn-convert:active { filter: brightness(0.94); }
+    .conv-legend { font-size: 10px; color: var(--muted-2); margin-top: 6px; font-family: ui-monospace, monospace; letter-spacing: 1px; }
     .field.full { grid-column: 1 / -1; }
 
     .card-footer { display: flex; gap: 6px; margin-bottom: 4px; }
@@ -247,6 +256,17 @@
     .breakdown-item .lbl .flag { color: var(--c-flagged); font-size: 11px; margin-left: 6px; }
     .breakdown-item .amt { color: var(--text); font-weight: 600; font-family: ui-monospace, monospace; }
 
+    /* ── Settlement (baki belum bayar) ── */
+    .settle-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 9px; }
+    .settle-top { display: flex; justify-content: space-between; align-items: baseline; }
+    .settle-name { font-size: 15px; font-weight: 700; color: #fff; }
+    .settle-baki { font-size: 20px; font-weight: 800; color: var(--c-sold); }
+    .settle-baki.clear { color: var(--c-listed); }
+    .settle-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .btn-pay { width: 100%; margin-top: 11px; padding: 10px; background: linear-gradient(135deg, #6573c8, #4f5fb5); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .btn-pay:active { filter: brightness(0.94); }
+    .btn-pay:disabled { background: var(--surface-2); color: var(--c-listed); opacity: 0.7; }
+
     /* ── Bottom nav ── */
     .nav {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
@@ -269,6 +289,23 @@
       box-shadow: 0 6px 20px rgba(0,0,0,0.5); max-width: 90vw; text-align: center;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Undo bar (snackbar dengan action) ── */
+    .undobar {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(8px);
+      display: flex; align-items: center; gap: 14px;
+      background: #2a2a4a; color: var(--text); padding: 11px 14px 11px 18px;
+      border-radius: 12px; font-size: 13px; font-weight: 600;
+      opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+      z-index: 1000; box-shadow: 0 6px 20px rgba(0,0,0,0.5); max-width: 92vw;
+    }
+    .undobar.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    .undobar-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .undobar-btn {
+      flex-shrink: 0; background: rgba(123,140,222,0.2); color: #9ba8e8;
+      border: none; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 700;
+    }
+    .undobar-btn:active { background: rgba(123,140,222,0.35); }
 
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; transition: none !important; }
@@ -314,6 +351,11 @@
   </button>
 </nav>
 
+<div class="undobar" id="undobar">
+  <span class="undobar-msg" id="undobar-msg"></span>
+  <button class="undobar-btn" onclick="doUndo()">↩ Undo</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -339,6 +381,50 @@
   };
   const WORKER_ROLE = { Dekwan:'Checking · Android', Korer:'Editing · iOS', Danial:'Admin · Owner' };
 
+  /* ════════ Player Converter (shorthand → nama penuh) ════════ */
+  const PLAYER_MAP = {
+    'NE':'NEW EPIC', 'OE':'OLD EPIC', 'BL':'BLUELOCK', 'TS':'TSUBASA',
+    'S':'SHWTIME', 'B':'BIGTIME', 'E':'EPIC', 'N':'NOSTALGIA', 'P':'PACK', 'M':'MANAGER'
+  };
+  const PLAYER_SHORT = ['NE','OE','BL','TS','S','B','E','N','P','M'];
+  const PLAYER_EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+
+  function convCleanText(text) {
+    return String(text||'')
+      .replace(PLAYER_EMAIL_RE, ' ')
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/\d{6,}/g, ' ')
+      .replace(/rm\d+/gi, ' ')
+      .replace(/silog\s*\d*/gi, ' ')
+      .replace(/wilog\s*\d*/gi, ' ')
+      .replace(/mahal\d+/gi, ' ')
+      .replace(/[^a-zA-Z0-9\s]/g, ' ')
+      .replace(/\b\d+\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function convertPlayerText(raw) {
+    const tokens = convCleanText(raw).split(/\s+/).filter(function (t) { return t.length > 0; });
+    const out = [];
+    let cat = null;
+    for (let i = 0; i < tokens.length; i++) {
+      const u = tokens[i].toUpperCase();
+      if (PLAYER_SHORT.indexOf(u) !== -1) { cat = u; }
+      else if (cat && tokens[i].length >= 2) { out.push(PLAYER_MAP[cat] + ' ' + u); }
+    }
+    return out;
+  }
+
+  function convertToPlayerList(idx) {
+    const raw = val('conv-inp-' + idx);
+    const names = convertPlayerText(raw);
+    if (names.length === 0) { toast('Tiada player jumpa — check shorthand (B, S, NE…)'); return; }
+    const pl = document.getElementById('playerList-' + idx);
+    if (pl) { pl.value = names.join('\n'); }
+    toast('⚡ ' + names.length + ' player → Player List');
+  }
+
   let allData     = [];
   let activeView  = 'pipeline';
   let activeStage = 'GENERATE';
@@ -346,6 +432,7 @@
 
   /* ════════ View switching ════════ */
   function switchView(view) {
+    hideUndo();
     activeView = view;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + view).classList.add('active');
@@ -447,7 +534,7 @@
         ${hargaBeliField}
         <div class="field"><label>Harga Jual (RM)</label><input type="text" id="harga-${idx}" value="${ea(d.harga||'')}" placeholder="${needsPrice?'set harga…':''}"></div>
         <div class="field"><label>Silog (baki login)</label><input type="number" inputmode="numeric" id="silog-${idx}" value="${ea(d.silog===''?'':d.silog)}" placeholder="10"></div>
-        <div class="field full"><label>Player List</label><input type="text" id="playerList-${idx}" value="${ea(d.playerList||'')}"></div>
+        <div class="field full"><label>Player List</label><textarea id="playerList-${idx}" rows="3" class="notes-input">${esc(d.playerList||'')}</textarea></div>
         <div class="field full"><label>Notes</label><textarea id="notes-${idx}" rows="2" class="notes-input" placeholder="cth: silog habis, problem login, customer minta…">${esc(d.notes||'')}</textarea></div>
       </div>
       <div class="card-footer">
@@ -474,9 +561,12 @@
       </div>`;
     } else if (s === 'EDITING') {
       const a = ADVANCE[s];
-      action = `<div class="actions">
+      action = `<div class="actions stack">
         <button class="btn-advance ${a.cls}" onclick="advanceStage(${idx})">${a.label} →</button>
-        <button class="btn-flag" onclick="flagAccount(${idx})">🚩 Tak Safe</button>
+        <div class="actions-row">
+          <button class="btn-flag" style="flex:1" onclick="flagAccount(${idx})">🚩 Tak Safe</button>
+          <button class="btn-limit" style="flex:1" onclick="parkLimit(${idx})">🔒 Login Habis</button>
+        </div>
       </div>`;
     } else if (s === 'LISTED') {
       action = `<div class="sale">
@@ -493,6 +583,7 @@
         <div class="field full" id="saleother-wrap-${idx}" style="display:none">
           <label>Nama lain</label><input type="text" id="saleworker-other-${idx}" placeholder="Taip nama"></div>
         <button class="btn-sale" onclick="confirmSale(${idx})">✅ Sahkan Jualan → Sold</button>
+        <button class="btn-limit" style="width:100%;margin-top:8px" onclick="parkLimit(${idx})">🔒 Login Habis</button>
       </div>`;
     } else if (s === 'LIMIT') {
       action = `<div class="info-note limit">🔒 Login habis — tunggu reset awal bulan. Lepas reset, masuk balik Checking.</div>
@@ -506,6 +597,15 @@
     } else if (s === 'FLAGGED') {
       action = `<div class="info-note flagged">🚩 Tak safe — akaun ada link (eFootball / Game Center).${d.notes ? '<br>📝 ' + esc(d.notes) : ''}</div>`;
     }
+
+    // Player Converter (EDITING je) — hasil masuk ke Player List
+    const converterBlock = (s === 'EDITING') ? `
+      <div class="converter">
+        <label class="conv-label">⚡ Player Converter</label>
+        <textarea id="conv-inp-${idx}" class="conv-input" rows="3" placeholder="Paste shorthand: B Messi  NE Ronaldo  S Mbappe…"></textarea>
+        <button class="btn-convert" onclick="convertToPlayerList(${idx})">Convert → isi Player List ⬇</button>
+        <div class="conv-legend">NE OE BL TS · S B E N P M</div>
+      </div>` : '';
 
     return `
       <div class="card s-${s.toLowerCase()} ${needsPrice?'needs-price':''}" id="card-${idx}">
@@ -524,6 +624,7 @@
           ${silogBadge(d.silog)}
           <span class="meta-date">${esc(d.tarikh||'')}</span>
         </div>
+        ${converterBlock}
         ${editable}
         ${action}
       </div>`;
@@ -566,22 +667,22 @@
     } catch (e) { toast('Gagal: ' + e.message); }
   }
 
+  /* ════════ Kumpul field kad (untuk auto-save) ════════ */
+  function collectCardFields(idx) {
+    const f = {};
+    const sup = document.getElementById('supplier-'   + idx); if (sup) f.supplier   = sup.value;
+    const hg  = document.getElementById('harga-'      + idx); if (hg)  f.harga      = hg.value;
+    const hb  = document.getElementById('hargabeli-'  + idx); if (hb)  f.hargaBeli  = hb.value;
+    const pl  = document.getElementById('playerList-' + idx); if (pl)  f.playerList = pl.value;
+    const nt  = document.getElementById('notes-'      + idx); if (nt)  f.notes      = nt.value;
+    const sl  = document.getElementById('silog-'      + idx); if (sl)  f.silog      = sl.value;
+    return f;
+  }
+
   /* ════════ Save (corrections) ════════ */
   async function saveCard(idx) {
     const d = allData[idx];
-    const payload = {
-      action:     'update',
-      email:      d.email,
-      supplier:   val('supplier-'   + idx),
-      harga:      val('harga-'      + idx),
-      playerList: val('playerList-' + idx)
-    };
-    const hbField = document.getElementById('hargabeli-' + idx);
-    if (hbField) payload.hargaBeli = hbField.value;
-    const noteField = document.getElementById('notes-' + idx);
-    if (noteField) payload.notes = noteField.value;
-    const silogField = document.getElementById('silog-' + idx);
-    if (silogField) payload.silog = silogField.value;
+    const payload = Object.assign({ action: 'update', email: d.email }, collectCardFields(idx));
     try {
       const json = await apiPost(API_UPDATE, payload);
       if (!json.ok) { toast('Gagal: ' + json.error); return; }
@@ -596,12 +697,12 @@
   async function advanceStage(idx) {
     const d = allData[idx];
     try {
-      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email });
+      const json = await apiPost(API_UPDATE, Object.assign({ action: 'transition', email: d.email }, collectCardFields(idx)));
       if (!json.ok) { toast('Gagal: ' + json.error); return; }
       allData[idx] = json.data.row;
       renderStageTabs();
       renderPipeline();
-      toast(commissionToast('→ ' + STAGE_META[json.data.to].label, json.data.commission));
+      showUndo(commissionToast('→ ' + STAGE_META[json.data.to].label, json.data.commission), json.data.email || d.email, json.data.from);
     } catch (e) { toast('Gagal: ' + e.message); }
   }
 
@@ -610,26 +711,25 @@
     const d = allData[idx];
     if (!confirm('Flag akaun ni sebagai tak safe?\n\n' + d.email + '\n\nAkaun akan masuk Flagged (terminal).')) return;
     try {
-      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email, toStage: 'FLAGGED' });
+      const json = await apiPost(API_UPDATE, Object.assign({ action: 'transition', email: d.email, toStage: 'FLAGGED' }, collectCardFields(idx)));
       if (!json.ok) { toast('Gagal: ' + json.error); return; }
       allData[idx] = json.data.row;
       renderStageTabs();
       renderPipeline();
-      toast(commissionToast('🚩 Flagged', json.data.commission));
+      showUndo(commissionToast('🚩 Flagged', json.data.commission), json.data.email || d.email, json.data.from);
     } catch (e) { toast('Gagal: ' + e.message); }
   }
 
   /* ════════ Park ke Login Habis (silog habis) ════════ */
   async function parkLimit(idx) {
     const d = allData[idx];
-    if (!confirm('Park akaun ni ke Login Habis?\n\n' + d.email + '\n\nAkaun tunggu reset awal bulan. Takde komisen.')) return;
     try {
-      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email, toStage: 'LIMIT' });
+      const json = await apiPost(API_UPDATE, Object.assign({ action: 'transition', email: d.email, toStage: 'LIMIT' }, collectCardFields(idx)));
       if (!json.ok) { toast('Gagal: ' + json.error); return; }
       allData[idx] = json.data.row;
       renderStageTabs();
       renderPipeline();
-      toast('🔒 Park ke Login Habis');
+      showUndo('🔒 Park ke Login Habis', json.data.email || d.email, json.data.from);
     } catch (e) { toast('Gagal: ' + e.message); }
   }
 
@@ -637,12 +737,12 @@
   async function reactivateLimit(idx) {
     const d = allData[idx];
     try {
-      const json = await apiPost(API_UPDATE, { action: 'transition', email: d.email, toStage: 'CHECKING' });
+      const json = await apiPost(API_UPDATE, Object.assign({ action: 'transition', email: d.email, toStage: 'CHECKING' }, collectCardFields(idx)));
       if (!json.ok) { toast('Gagal: ' + json.error); return; }
       allData[idx] = json.data.row;
       renderStageTabs();
       renderPipeline();
-      toast('↻ Masuk semula Checking');
+      showUndo('↻ Masuk semula Checking', json.data.email || d.email, json.data.from);
     } catch (e) { toast('Gagal: ' + e.message); }
   }
 
@@ -658,9 +758,11 @@
     if (!confirm('Sahkan jualan?\n\n' + d.email + '\nWhatsApp: ' + wa + '\nSerah oleh: ' + worker +
                  '\n\nStage → Sold. Nombor didaftar ke OTP pipeline. ' + worker + ' dapat +RM2.00.')) return;
     try {
-      const json = await apiPost(API_UPDATE, { action: 'assignSale', email: d.email, whatsapp: wa, worker });
+      const fields = collectCardFields(idx);
+      const json = await apiPost(API_UPDATE, Object.assign({ action: 'assignSale', email: d.email, whatsapp: wa, worker }, fields));
       if (!json.ok) { toast('Gagal: ' + json.error); return; }
-      // refresh row from server (assignSale tak pulangkan full row → patch fields)
+      // patch fields tempatan supaya selari dengan apa yang dihantar/disimpan
+      Object.assign(allData[idx], fields);
       allData[idx].whatsapp = json.data.whatsapp;
       allData[idx].linkedAt = json.data.linkedAt;
       allData[idx].stage    = json.data.stage; // SOLD
@@ -745,6 +847,7 @@
     }
   }
 
+  let gajiSettlement = [];
   function renderGaji(d) {
     const periods = [['today','Hari Ni'],['month','Bulan Ni'],['all','Semua']];
     const switcher = `<div class="period-switch">` + periods.map(([k,l]) =>
@@ -775,16 +878,54 @@
         <div class="breakdown-item"><span class="lbl">Sale (serah akaun)</span><span class="amt">${rm(be.SALE)}</span></div>
       </div>`;
 
+    // Settlement (sepanjang masa) — baki belum bayar + butang Bayar
+    gajiSettlement = d.settlement || [];
+    const settleCards = gajiSettlement.length
+      ? gajiSettlement.map((s, i) => `
+        <div class="settle-card">
+          <div class="settle-top">
+            <div class="settle-name">${esc(s.worker)}</div>
+            <div class="settle-baki ${s.baki <= 0 ? 'clear' : ''}">${rm(s.baki)}</div>
+          </div>
+          <div class="settle-meta">Earned ${rm(s.earned)} · Dah bayar ${rm(s.paid)}</div>
+          <button class="btn-pay" ${s.baki <= 0 ? 'disabled' : ''} onclick="payWorker(${i})">
+            ${s.baki <= 0 ? '✓ Settle' : '💸 Tanda Dah Bayar'}
+          </button>
+        </div>`).join('')
+      : `<div class="empty">Takde rekod lagi.</div>`;
+
+    const settlement = `
+      <div class="dash-section-label" style="margin-top:24px">Baki Belum Bayar <span style="color:var(--muted-2);text-transform:none;letter-spacing:0">(sepanjang masa)</span></div>
+      ${settleCards}`;
+
     document.getElementById('gaji').innerHTML = `
       ${switcher}
       <div class="gaji-total">
-        <div class="k">Jumlah Komisen</div>
+        <div class="k">Komisen ${gajiPeriod==='today'?'Hari Ni':gajiPeriod==='month'?'Bulan Ni':'Semua'}</div>
         <div class="v">${rm(d.grandTotal)}</div>
         <div class="c">${d.count} transaksi</div>
       </div>
       ${workers}
       ${breakdown}
+      ${settlement}
     `;
+  }
+
+  /* ════════ Bayar gaji (rekod payout) ════════ */
+  async function payWorker(i) {
+    const s = gajiSettlement[i];
+    if (!s) return;
+    const amtStr = prompt('Berapa nak bayar ' + s.worker + '?\n(Baki belum bayar: RM' + Number(s.baki).toFixed(2) + ')', Number(s.baki).toFixed(2));
+    if (amtStr === null) return;
+    const amt = parseFloat(amtStr);
+    if (isNaN(amt) || amt <= 0) { toast('Amount tak valid'); return; }
+    if (!confirm('Rekod bayaran RM' + amt.toFixed(2) + ' kepada ' + s.worker + '?\n\nIni cuma rekod pembayaran — komisen log tak terusik.')) return;
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'payout', worker: s.worker, amount: amt });
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      toast('💸 Bayar ' + s.worker + ' RM' + amt.toFixed(2));
+      loadGaji();
+    } catch (e) { toast('Gagal: ' + e.message); }
   }
 
   /* ════════ Shared API helper ════════ */
@@ -817,6 +958,35 @@
       btn.textContent = '✓'; btn.classList.add('ok');
       setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 1400);
     });
+  }
+
+  /* ════════ Undo (pulang stage je — komisen kekal) ════════ */
+  let lastAction = null; // { email, from }
+  function showUndo(msg, email, from) {
+    lastAction = { email: email, from: from };
+    document.getElementById('undobar-msg').textContent = msg;
+    const bar = document.getElementById('undobar');
+    bar.classList.add('show');
+    clearTimeout(showUndo._t);
+    showUndo._t = setTimeout(hideUndo, 9000);
+  }
+  function hideUndo() {
+    document.getElementById('undobar').classList.remove('show');
+    lastAction = null;
+  }
+  async function doUndo() {
+    if (!lastAction) { hideUndo(); return; }
+    const a = lastAction;
+    hideUndo();
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'update', email: a.email, stage: a.from });
+      if (!json.ok) { toast('Undo gagal: ' + json.error); return; }
+      const idx = allData.findIndex(d => (d.email||'').toLowerCase() === a.email.toLowerCase());
+      if (idx !== -1) mergeRow(idx, json.data);
+      renderStageTabs();
+      renderPipeline();
+      toast('↩ Undo · balik ke ' + (STAGE_META[a.from] ? STAGE_META[a.from].label : a.from));
+    } catch (e) { toast('Undo gagal: ' + e.message); }
   }
 
   /* ════════ Toast ════════ */
