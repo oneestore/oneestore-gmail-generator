@@ -152,10 +152,11 @@
     .conv-label { font-size: 10px; color: #81c784; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; font-weight: 700; }
     .conv-input { width: 100%; background: var(--bg); border: 1px solid var(--border-2); border-radius: 6px; color: var(--text); padding: 7px 8px; font-size: 13px; resize: vertical; font-family: inherit; line-height: 1.4; }
     .conv-input::placeholder { color: var(--muted-2); }
-    .conv-btns { display: flex; gap: 7px; margin-top: 7px; }
-    .btn-convert { flex: 1; padding: 9px; background: linear-gradient(135deg, #4cb050, #379b3c); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; }
+    .btn-convert { width: 100%; margin-top: 7px; padding: 9px; background: linear-gradient(135deg, #4cb050, #379b3c); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; }
     .btn-convert:active { filter: brightness(0.94); }
-    .btn-conv-copy { flex-shrink: 0; padding: 9px 14px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-2); border-radius: 7px; font-size: 12px; font-weight: 600; }
+    .conv-out-wrap { margin-top: 8px; }
+    .conv-out { background: var(--bg); border: 1px solid #3d6635; border-radius: 6px; padding: 9px 10px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--text); max-height: 220px; overflow-y: auto; }
+    .btn-conv-copy { width: 100%; margin-top: 7px; padding: 9px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-2); border-radius: 7px; font-size: 12px; font-weight: 600; }
     .btn-conv-copy:active { color: var(--text); }
     .conv-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; gap: 8px; }
     .conv-legend { font-size: 10px; color: var(--muted-2); font-family: ui-monospace, monospace; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -471,19 +472,26 @@
     return out;
   }
 
-  function convertToPlayerList(idx) {
+  function runConvert(idx) {
     const raw = val('conv-inp-' + idx);
     const names = convertPlayerText(raw);
-    if (names.length === 0) { toast('Tiada player jumpa — check shorthand (B, S, NE…)'); return; }
-    const pl = document.getElementById('playerList-' + idx);
-    if (pl) { pl.value = names.join('\n'); }
-    toast('⚡ ' + names.length + ' player → Player List');
+    const wrap = document.getElementById('conv-out-wrap-' + idx);
+    const out  = document.getElementById('conv-out-' + idx);
+    if (names.length === 0) {
+      if (out) out.textContent = '';
+      if (wrap) wrap.style.display = 'none';
+      toast('Tiada player jumpa — check shorthand (B, S, NE…)');
+      return;
+    }
+    if (out)  out.textContent = names.join('\n');
+    if (wrap) wrap.style.display = 'block';
+    toast('⚡ ' + names.length + ' player');
   }
 
-  function copyPlayerList(idx) {
-    const pl = document.getElementById('playerList-' + idx);
-    if (!pl || !pl.value.trim()) { toast('Player List kosong'); return; }
-    navigator.clipboard.writeText(pl.value).then(function () { toast('📋 Player list tersalin'); });
+  function copyConvOut(idx) {
+    const out = document.getElementById('conv-out-' + idx);
+    if (!out || !out.textContent.trim()) { toast('Convert dulu'); return; }
+    navigator.clipboard.writeText(out.textContent).then(function () { toast('📋 List tersalin'); });
   }
 
   /* ════════ Shorthand: load dari sheet + modal urus kod ════════ */
@@ -730,9 +738,10 @@
       <div class="converter">
         <label class="conv-label">⚡ Player Converter</label>
         <textarea id="conv-inp-${idx}" class="conv-input" rows="3" placeholder="Paste shorthand: B Messi  NE Ronaldo  NA Sasuke…">${esc(d.playerList||'')}</textarea>
-        <div class="conv-btns">
-          <button class="btn-convert" onclick="convertToPlayerList(${idx})">Convert ⬇</button>
-          <button class="btn-conv-copy" onclick="copyPlayerList(${idx})">📋 Copy</button>
+        <button class="btn-convert" onclick="runConvert(${idx})">Convert ⬇</button>
+        <div class="conv-out-wrap" id="conv-out-wrap-${idx}" style="display:none">
+          <div class="conv-out" id="conv-out-${idx}"></div>
+          <button class="btn-conv-copy" onclick="copyConvOut(${idx})">📋 Copy list penuh</button>
         </div>
         <div class="conv-foot">
           <span class="conv-legend">${PLAYER_SHORT.join(' ')}</span>
