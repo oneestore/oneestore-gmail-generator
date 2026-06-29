@@ -245,6 +245,12 @@
     /* ── Dashboard ── */
     .dash { padding: 16px 14px; }
     .dash-section-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin: 4px 2px 10px; }
+    .backup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .backup-info { font-size: 13px; color: var(--text); line-height: 1.6; }
+    .backup-info .bk-sub { font-size: 11px; color: var(--muted); }
+    .bk-ok { color: var(--c-listed); } .bk-warn { color: var(--c-sold); } .bk-run { color: var(--primary); }
+    .btn-backup { width: 100%; margin-top: 11px; padding: 10px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-2); border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .btn-backup:active { filter: brightness(1.15); }
     .sales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
     .sales-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
     .sales-card .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -936,9 +942,42 @@
       const json = await apiPost(API_UPDATE, { action: 'dashboard' });
       if (!json.ok) throw new Error(json.error);
       renderDashboard(json.data);
+      loadBackupStatus();
     } catch (e) {
       document.getElementById('dash').innerHTML = '<div class="empty">Tak boleh load.<br>' + esc(e.message) + '</div>';
     }
+  }
+
+  async function loadBackupStatus() {
+    const info = document.getElementById('backupInfo');
+    if (!info) return;
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'backupStatus' });
+      if (json && json.ok && json.data) {
+        const d = json.data;
+        if (d.latest) {
+          info.innerHTML = '<span class="bk-ok">●</span> Backup terakhir: <b>' + esc(d.latest.at) + '</b>'
+            + '<br><span class="bk-sub">' + d.count + ' salinan disimpan · auto-buang lepas ' + d.keep + '</span>';
+        } else {
+          info.innerHTML = '<span class="bk-warn">●</span> Belum ada backup. Tekan butang bawah, atau run <b>setupBackupTrigger</b> sekali di Apps Script untuk auto harian.';
+        }
+      } else {
+        info.innerHTML = '<span class="bk-warn">●</span> Tak boleh semak status (mungkin perlu authorize Drive — run setupBackupTrigger sekali).';
+      }
+    } catch (e) {
+      info.innerHTML = '<span class="bk-warn">●</span> Tak boleh semak status backup.';
+    }
+  }
+
+  async function doBackupNow() {
+    const info = document.getElementById('backupInfo');
+    if (info) info.innerHTML = '<span class="bk-run">●</span> Sedang backup… (kejap)';
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'backupNow' });
+      if (!json || !json.ok) { toast('Backup gagal: ' + ((json && json.error) || 'authorize Drive dulu')); loadBackupStatus(); return; }
+      toast('🛡️ Backup siap');
+      loadBackupStatus();
+    } catch (e) { toast('Backup gagal: ' + e.message); loadBackupStatus(); }
   }
 
   function renderDashboard(d) {
@@ -972,6 +1011,11 @@
       </div>
       <div class="dash-section-label">Pipeline — di mana akaun sekarang</div>
       <div class="funnel">${funnel}</div>
+      <div class="dash-section-label" style="margin-top:20px">🛡️ Backup Data</div>
+      <div class="backup-card">
+        <div class="backup-info" id="backupInfo">Semak status…</div>
+        <button class="btn-backup" onclick="doBackupNow()">🛡️ Backup sekarang</button>
+      </div>
     `;
   }
 
