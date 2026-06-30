@@ -148,19 +148,19 @@
     .notes-input::placeholder { color: var(--muted-2); }
 
     /* ── Player Converter ── */
-    .converter { background: rgba(67,160,71,0.06); border: 1px solid rgba(67,160,71,0.25); border-radius: 8px; padding: 10px; margin-bottom: 9px; }
-    .conv-label { font-size: 10px; color: #81c784; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; font-weight: 700; }
+    .converter { background: rgba(171,71,188,0.07); border: 1px solid rgba(171,71,188,0.3); border-radius: 8px; padding: 10px; margin-bottom: 9px; }
+    .conv-label { font-size: 10px; color: #ce93d8; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; font-weight: 700; }
     .conv-input { width: 100%; background: var(--bg); border: 1px solid var(--border-2); border-radius: 6px; color: var(--text); padding: 7px 8px; font-size: 13px; resize: vertical; font-family: inherit; line-height: 1.4; }
     .conv-input::placeholder { color: var(--muted-2); }
-    .btn-convert { width: 100%; margin-top: 7px; padding: 9px; background: linear-gradient(135deg, #4cb050, #379b3c); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; }
+    .btn-convert { width: 100%; margin-top: 7px; padding: 9px; background: linear-gradient(135deg, #b455c7, #8e3aa0); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; }
     .btn-convert:active { filter: brightness(0.94); }
     .conv-out-wrap { margin-top: 8px; }
-    .conv-out { background: var(--bg); border: 1px solid #3d6635; border-radius: 6px; padding: 9px 10px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--text); max-height: 220px; overflow-y: auto; }
+    .conv-out { background: var(--bg); border: 1px solid rgba(171,71,188,0.45); border-radius: 6px; padding: 9px 10px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--text); max-height: 220px; overflow-y: auto; }
     .btn-conv-copy { width: 100%; margin-top: 7px; padding: 9px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-2); border-radius: 7px; font-size: 12px; font-weight: 600; }
     .btn-conv-copy:active { color: var(--text); }
     .conv-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; gap: 8px; }
     .conv-legend { font-size: 10px; color: var(--muted-2); font-family: ui-monospace, monospace; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .conv-manage { flex-shrink: 0; background: transparent; border: none; color: #81c784; font-size: 11px; font-weight: 600; padding: 2px 4px; }
+    .conv-manage { flex-shrink: 0; background: transparent; border: none; color: #ce93d8; font-size: 11px; font-weight: 600; padding: 2px 4px; }
 
     /* ── Code-management modal ── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(2px); }
@@ -186,8 +186,9 @@
     .field.full { grid-column: 1 / -1; }
 
     .card-footer { display: flex; gap: 6px; margin-bottom: 4px; }
-    .btn-save { flex: 1; padding: 8px; background: #1b3a2a; color: #66bb6a; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; }
+    .btn-save { flex: 1; padding: 8px; background: #1b3a2a; color: #66bb6a; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; transition: background 0.2s, color 0.2s; }
     .btn-save:active { background: #0f2a1a; }
+    .btn-save.saved-flash { background: #143d28; color: #81c784; }
     .btn-del { padding: 8px 13px; background: #3a1a1a; color: #e57373; border: none; border-radius: 8px; font-size: 13px; }
 
     /* ── Stage action row ── */
@@ -710,19 +711,19 @@
     const sup = d.supplier || d.seller || '';
     const needsPrice = (s === 'LISTED' && !String(d.harga||'').trim());
 
-    // editable block (all stages — corrections allowed)
-    const hargaBeliField = `<div class="field"><label>Harga Beli (modal)</label><input type="text" id="hargabeli-${idx}" value="${ea(d.hargaBeli||'')}" placeholder="cth 30"></div>`;
+    // editable block (all stages — corrections allowed) — auto-save on change
+    const hargaBeliField = `<div class="field"><label>Harga Beli (modal)</label><input type="text" id="hargabeli-${idx}" value="${ea(d.hargaBeli||'')}" placeholder="cth 30" onchange="scheduleAutoSave(${idx})"></div>`;
     const editable = `
       <div class="fields">
-        <div class="field"><label>Supplier</label><input type="text" id="supplier-${idx}" value="${ea(sup)}"></div>
+        <div class="field"><label>Supplier</label><input type="text" id="supplier-${idx}" value="${ea(sup)}" onchange="scheduleAutoSave(${idx})"></div>
         ${hargaBeliField}
-        <div class="field"><label>Harga Jual (RM)</label><input type="text" id="harga-${idx}" value="${ea(d.harga||'')}" placeholder="${needsPrice?'set harga…':''}"></div>
-        <div class="field"><label>Silog (baki login)</label><input type="number" inputmode="numeric" id="silog-${idx}" value="${ea(d.silog===''?'':d.silog)}" placeholder="10"></div>
-        <div class="field full"><label>Player List</label><textarea id="playerList-${idx}" rows="3" class="notes-input">${esc(d.playerList||'')}</textarea></div>
-        <div class="field full"><label>Notes</label><textarea id="notes-${idx}" rows="2" class="notes-input" placeholder="cth: silog habis, problem login, customer minta…">${esc(d.notes||'')}</textarea></div>
+        <div class="field"><label>Harga Jual (RM)</label><input type="text" id="harga-${idx}" value="${ea(d.harga||'')}" placeholder="${needsPrice?'set harga…':''}" onchange="scheduleAutoSave(${idx})"></div>
+        <div class="field"><label>Silog (baki login)</label><input type="number" inputmode="numeric" id="silog-${idx}" value="${ea(d.silog===''?'':d.silog)}" placeholder="10" onchange="scheduleAutoSave(${idx})"></div>
+        <div class="field full"><label>Player List</label><textarea id="playerList-${idx}" rows="3" class="notes-input" onchange="scheduleAutoSave(${idx})">${esc(d.playerList||'')}</textarea></div>
+        <div class="field full"><label>Notes</label><textarea id="notes-${idx}" rows="2" class="notes-input" placeholder="cth: silog habis, problem login, customer minta…" onchange="scheduleAutoSave(${idx})">${esc(d.notes||'')}</textarea></div>
       </div>
       <div class="card-footer">
-        <button class="btn-save" onclick="saveCard(${idx})">💾 Save</button>
+        <button class="btn-save" id="savebtn-${idx}" onclick="saveCard(${idx})">💾 Save</button>
         <button class="btn-del" onclick="delCard(${idx})">🗑️</button>
       </div>`;
 
@@ -882,6 +883,30 @@
       renderPipeline();
       toast('💾 Disimpan');
     } catch (e) { toast('Gagal: ' + e.message); }
+  }
+
+  /* ════════ Auto-save (debounced, senyap — tak re-render supaya tak ganggu menaip) ════════ */
+  const autoSaveTimers = {};
+  function scheduleAutoSave(idx) {
+    clearTimeout(autoSaveTimers[idx]);
+    autoSaveTimers[idx] = setTimeout(function () { autoSaveCard(idx); }, 700);
+  }
+  async function autoSaveCard(idx) {
+    const d = allData[idx];
+    if (!d) return;
+    const payload = Object.assign({ action: 'update', email: d.email }, collectCardFields(idx));
+    try {
+      const json = await apiPost(API_UPDATE, payload);
+      if (json && json.ok) { mergeRow(idx, json.data); flashSaved(idx); }
+    } catch (e) { /* senyap — butang Save manual masih ada */ }
+  }
+  function flashSaved(idx) {
+    const btn = document.getElementById('savebtn-' + idx);
+    if (!btn) return;
+    btn.innerHTML = '✓ Auto-saved';
+    btn.classList.add('saved-flash');
+    clearTimeout(btn._flashT);
+    btn._flashT = setTimeout(function () { btn.innerHTML = '💾 Save'; btn.classList.remove('saved-flash'); }, 1400);
   }
 
   /* ════════ Advance stage (auto next) ════════ */
