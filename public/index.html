@@ -251,6 +251,40 @@
     .bk-ok { color: var(--c-listed); } .bk-warn { color: var(--c-sold); } .bk-run { color: var(--primary); }
     .btn-backup { width: 100%; margin-top: 11px; padding: 10px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-2); border-radius: 8px; font-size: 13px; font-weight: 700; }
     .btn-backup:active { filter: brightness(1.15); }
+
+    /* ── Stok (Inventory Aging) ── */
+    .stok { padding: 16px; }
+    .stk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stk-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .stk-card.big { grid-column: 1 / -1; }
+    .stk-card .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stk-card .v { font-size: 23px; font-weight: 800; margin-top: 4px; }
+    .stk-card.big .v { font-size: 30px; }
+    .stk-card .v.gold { color: var(--c-sold); } .stk-card .v.green { color: var(--c-listed); }
+    .stk-card .c { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .stk-sub { font-size: 11px; margin-top: 4px; } .stk-sub.warn { color: var(--c-sold); }
+    .flag-warn { margin-top: 12px; background: rgba(229,57,53,0.08); border: 1px solid rgba(229,57,53,0.3); border-radius: 10px; padding: 11px 13px; font-size: 12px; color: #ef9a9a; line-height: 1.5; }
+    .flag-warn b { color: #ff8a80; }
+    .age-buckets { display: flex; flex-direction: column; gap: 11px; }
+    .age-row-top { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+    .age-row-lbl { color: var(--text); font-weight: 600; }
+    .age-row-lbl.bk-warn { color: var(--c-sold); } .age-row-lbl.bk-old { color: var(--c-flagged); }
+    .age-row-val { color: var(--muted); }
+    .age-bar-track { height: 8px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+    .age-bar { height: 100%; background: var(--primary); border-radius: 5px; }
+    .age-bar.bk-warn { background: var(--c-sold); } .age-bar.bk-old { background: var(--c-flagged); }
+    .stk-list { display: flex; flex-direction: column; gap: 7px; }
+    .stk-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
+    .stk-item-l { min-width: 0; }
+    .stk-email { font-size: 13px; color: #fff; font-family: ui-monospace, monospace; word-break: break-all; }
+    .stk-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .stk-stage { font-weight: 700; }
+    .age-pill { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 20px; white-space: nowrap; }
+    .age-fresh { background: rgba(67,160,71,0.15); color: var(--c-listed); }
+    .age-mid { background: rgba(92,107,192,0.18); color: #9fa8da; }
+    .age-warn { background: rgba(255,167,38,0.15); color: var(--c-sold); }
+    .age-old { background: rgba(229,57,53,0.18); color: #ff8a80; }
+    .age-unknown { background: var(--surface-2); color: var(--muted); }
     .sales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
     .sales-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
     .sales-card .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -372,6 +406,11 @@
   <div class="gaji" id="gaji"><div class="loading">Loading…</div></div>
 </div>
 
+<!-- ════════ STOK VIEW ════════ -->
+<div class="view" id="view-stok">
+  <div class="stok" id="stok"><div class="loading">Loading…</div></div>
+</div>
+
 <!-- ════════ BOTTOM NAV ════════ -->
 <nav class="nav">
   <button class="nav-btn active" id="nav-pipeline" onclick="switchView('pipeline')">
@@ -379,6 +418,9 @@
   </button>
   <button class="nav-btn" id="nav-dashboard" onclick="switchView('dashboard')">
     <span class="ico">📊</span><span class="lbl">Dashboard</span>
+  </button>
+  <button class="nav-btn" id="nav-stok" onclick="switchView('stok')">
+    <span class="ico">📦</span><span class="lbl">Stok</span>
   </button>
   <button class="nav-btn" id="nav-gaji" onclick="switchView('gaji')">
     <span class="ico">💰</span><span class="lbl">Gaji</span>
@@ -582,6 +624,7 @@
     document.getElementById('viewLabel').textContent = view.charAt(0).toUpperCase() + view.slice(1);
     document.getElementById('stageTabs').style.display = (view === 'pipeline') ? 'flex' : 'none';
     if (view === 'dashboard') loadDashboard();
+    if (view === 'stok')      loadStok();
     if (view === 'gaji')      loadGaji();
   }
 
@@ -936,6 +979,72 @@
   }
 
   /* ════════ Dashboard ════════ */
+  /* ════════ STOK (Inventory Aging) ════════ */
+  async function loadStok() {
+    document.getElementById('stok').innerHTML = '<div class="loading">Loading…</div>';
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'inventory' });
+      if (!json.ok) throw new Error(json.error);
+      renderStok(json.data);
+    } catch (e) {
+      document.getElementById('stok').innerHTML = '<div class="empty">Tak boleh load.<br>' + esc(e.message) + '</div>';
+    }
+  }
+
+  function ageBadge(days) {
+    if (days === null || days === undefined) return '<span class="age-pill age-unknown">—</span>';
+    let cls = 'age-fresh';
+    if (days >= 15) cls = 'age-old'; else if (days >= 8) cls = 'age-warn'; else if (days >= 4) cls = 'age-mid';
+    return '<span class="age-pill ' + cls + '">' + days + ' hari</span>';
+  }
+
+  function renderStok(d) {
+    const costNote = d.costMissing > 0 ? '<div class="stk-sub warn">⚠ ' + d.costMissing + ' akaun takde harga beli</div>' : '';
+    const untungNote = d.listedCount > 0 ? '<div class="c">' + d.listedUntungCount + '/' + d.listedCount + ' listed ada harga</div>' : '';
+
+    const maxModal = Math.max.apply(null, d.buckets.map(function (b) { return b.modal; }).concat([1]));
+    const buckets = d.buckets.map(function (b) {
+      const pct = Math.round((b.modal / maxModal) * 100);
+      const cls = (b.label.indexOf('15+') === 0) ? 'bk-old' : (b.label.indexOf('8') === 0 ? 'bk-warn' : '');
+      return '<div class="age-row">'
+        + '<div class="age-row-top"><span class="age-row-lbl ' + cls + '">' + b.label + '</span>'
+        + '<span class="age-row-val">' + b.count + ' akaun · ' + rm(b.modal) + '</span></div>'
+        + '<div class="age-bar-track"><div class="age-bar ' + cls + '" style="width:' + pct + '%"></div></div>'
+        + '</div>';
+    }).join('');
+
+    const flaggedWarn = d.flaggedCount > 0
+      ? '<div class="flag-warn">🚩 Modal tersangkut dalam Flagged: <b>' + rm(d.modalFlagged) + '</b> (' + d.flaggedCount + ' akaun) — kemungkinan dah rugi</div>'
+      : '';
+
+    const items = d.items.length
+      ? d.items.map(function (it) {
+          const m = STAGE_META[it.stage] || { label: it.stage, color: 'var(--muted)' };
+          const beli = (it.hargaBeli !== null) ? rm(it.hargaBeli) : '—';
+          const jual = (it.hargaJual !== null) ? rm(it.hargaJual) : '—';
+          return '<div class="stk-item">'
+            + '<div class="stk-item-l">'
+            + '<div class="stk-email">' + esc(it.email) + '</div>'
+            + '<div class="stk-meta"><span class="stk-stage" style="color:' + m.color + '">' + esc(m.label) + '</span> · beli ' + beli + ' · jual ' + jual + '</div>'
+            + '</div>' + ageBadge(it.days) + '</div>';
+        }).join('')
+      : '<div class="empty">Takde akaun dalam stok.</div>';
+
+    document.getElementById('stok').innerHTML = `
+      <div class="dash-section-label">Modal & Potensi</div>
+      <div class="stk-grid">
+        <div class="stk-card big"><div class="k">💸 Modal Beku (belum jual)</div><div class="v gold">${rm(d.modalBeku)}</div><div class="c">${d.countStok} akaun dalam stok</div>${costNote}</div>
+        <div class="stk-card"><div class="k">Potensi Jualan</div><div class="v green">${rm(d.potensiJualan)}</div><div class="c">${d.listedCount} listed</div></div>
+        <div class="stk-card"><div class="k">Potensi Untung</div><div class="v green">${rm(d.potensiUntung)}</div>${untungNote}</div>
+      </div>
+      ${flaggedWarn}
+      <div class="dash-section-label" style="margin-top:22px">Umur Stok (sejak ditambah)</div>
+      <div class="age-buckets">${buckets}</div>
+      <div class="dash-section-label" style="margin-top:22px">Akaun belum jual — tertua dulu</div>
+      <div class="stk-list">${items}</div>
+    `;
+  }
+
   async function loadDashboard() {
     document.getElementById('dash').innerHTML = '<div class="loading">Loading…</div>';
     try {
