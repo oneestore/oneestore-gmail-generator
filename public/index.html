@@ -263,6 +263,11 @@
     .bk-ok { color: var(--c-listed); } .bk-warn { color: var(--c-sold); } .bk-run { color: var(--primary); }
     .btn-backup { width: 100%; margin-top: 11px; padding: 10px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-2); border-radius: 8px; font-size: 13px; font-weight: 700; }
     .btn-backup:active { filter: brightness(1.15); }
+    .danger-card { background: rgba(229,57,53,0.06); border: 1px solid rgba(229,57,53,0.3); border-radius: 12px; padding: 14px; }
+    .danger-info { font-size: 12px; color: #ef9a9a; line-height: 1.5; margin-bottom: 11px; }
+    .danger-info b { color: #ff8a80; }
+    .btn-danger { width: 100%; padding: 10px; background: transparent; color: #ff8a80; border: 1px solid rgba(229,57,53,0.5); border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .btn-danger:active { background: rgba(229,57,53,0.15); }
 
     /* ── Intelligence ── */
     .intel-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
@@ -1268,6 +1273,29 @@
     } catch (e) { toast('Backup gagal: ' + e.message); loadBackupStatus(); }
   }
 
+  /* ════════ Reset Data (3 lapis confirm) ════════ */
+  async function resetAllData() {
+    // Lapis 1: amaran jelas
+    if (!confirm('⚠️ AMARAN BESAR\n\nIni akan PADAM SEMUA:\n• Semua akaun (pipeline)\n• Semua komisen\n• Semua payout\n\nKod converter (SHORTHAND) KEKAL.\nBackup penuh dibuat automatik dulu.\n\nTeruskan?')) return;
+    // Lapis 2: taip PADAM
+    const typed = prompt('Untuk sahkan, taip:  PADAM\n(huruf besar)');
+    if (typed === null) return;
+    if (typed.trim() !== 'PADAM') { toast('Dibatalkan — perkataan tak sepadan'); return; }
+
+    toast('🛡️ Backup dulu, kemudian reset…');
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'resetData', confirm: 'PADAM' });
+      if (!json || !json.ok) { toast('Gagal: ' + ((json && json.error) || '')); return; }
+      const c = json.data.cleared || {};
+      allData = [];
+      renderStageTabs();
+      renderPipeline();
+      const bk = json.data.backup ? ('\nBackup: ' + json.data.backup) : '';
+      alert('✅ Reset siap!\n\nDipadam:\n• ' + (c.accounts||0) + ' akaun\n• ' + (c.commission||0) + ' komisen\n• ' + (c.payout||0) + ' payout' + bk);
+      toast('✅ Data dah fresh');
+    } catch (e) { toast('Gagal: ' + e.message); }
+  }
+
   function renderDashboard(d) {
     const p = d.pipeline || {};
     const order = ['GENERATE','CHECKING','EDITING','LISTED','SOLD','FLAGGED','LIMIT'];
@@ -1307,6 +1335,11 @@
       <div class="backup-card">
         <div class="backup-info" id="backupInfo">Semak status…</div>
         <button class="btn-backup" onclick="doBackupNow()">🛡️ Backup sekarang</button>
+      </div>
+      <div class="dash-section-label" style="margin-top:24px; color:#ef9a9a">⚠️ Zon Bahaya</div>
+      <div class="danger-card">
+        <div class="danger-info">Padam <b>SEMUA</b> akaun, komisen &amp; payout untuk mula fresh. SHORTHAND_MAP (kod converter) kekal. Backup penuh dibuat automatik dulu.</div>
+        <button class="btn-danger" onclick="resetAllData()">🗑️ Reset Semua Data</button>
       </div>
     `;
   }
