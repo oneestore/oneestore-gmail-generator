@@ -1273,19 +1273,19 @@
     } catch (e) { toast('Backup gagal: ' + e.message); loadBackupStatus(); }
   }
 
-  /* ════════ Reset Data (3 lapis confirm) ════════ */
+  /* ════════ Reset Data (confirm + PIN backend) ════════ */
   async function resetAllData() {
     // Lapis 1: amaran jelas
     if (!confirm('⚠️ AMARAN BESAR\n\nIni akan PADAM SEMUA:\n• Semua akaun (pipeline)\n• Semua komisen\n• Semua payout\n\nKod converter (SHORTHAND) KEKAL.\nBackup penuh dibuat automatik dulu.\n\nTeruskan?')) return;
-    // Lapis 2: taip PADAM
-    const typed = prompt('Untuk sahkan, taip:  PADAM\n(huruf besar)');
-    if (typed === null) return;
-    if (typed.trim() !== 'PADAM') { toast('Dibatalkan — perkataan tak sepadan'); return; }
+    // Lapis 2: PIN (disahkan di backend)
+    const pin = prompt('🔒 Masukkan PIN untuk reset:');
+    if (pin === null) return;
+    if (!pin.trim()) { toast('Dibatalkan'); return; }
 
     toast('🛡️ Backup dulu, kemudian reset…');
     try {
-      const json = await apiPost(API_UPDATE, { action: 'resetData', confirm: 'PADAM' });
-      if (!json || !json.ok) { toast('Gagal: ' + ((json && json.error) || '')); return; }
+      const json = await apiPost(API_UPDATE, { action: 'resetData', pin: pin.trim() });
+      if (!json || !json.ok) { toast('❌ ' + ((json && json.error) || 'Gagal')); return; }
       const c = json.data.cleared || {};
       allData = [];
       renderStageTabs();
@@ -1338,7 +1338,7 @@
       </div>
       <div class="dash-section-label" style="margin-top:24px; color:#ef9a9a">⚠️ Zon Bahaya</div>
       <div class="danger-card">
-        <div class="danger-info">Padam <b>SEMUA</b> akaun, komisen &amp; payout untuk mula fresh. SHORTHAND_MAP (kod converter) kekal. Backup penuh dibuat automatik dulu.</div>
+        <div class="danger-info">Padam <b>SEMUA</b> akaun, komisen &amp; payout untuk mula fresh. Perlu <b>PIN</b>. SHORTHAND_MAP (kod converter) kekal. Backup penuh dibuat automatik dulu.</div>
         <button class="btn-danger" onclick="resetAllData()">🗑️ Reset Semua Data</button>
       </div>
     `;
