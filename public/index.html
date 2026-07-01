@@ -86,6 +86,17 @@
       transition: transform .12s ease;
     }
     .btn-generate:active { transform: scale(0.98); }
+    .btn-addexisting { padding: 11px 16px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-2); border-radius: 10px; font-size: 13px; font-weight: 700; }
+    .btn-addexisting:active { filter: brightness(1.15); }
+    .add-form { display: flex; flex-direction: column; gap: 11px; overflow-y: auto; }
+    .add-field { display: flex; flex-direction: column; gap: 5px; }
+    .add-field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .add-field input, .add-field select, .add-field textarea { background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 8px; color: var(--text); padding: 10px; font-size: 14px; font-family: inherit; }
+    .add-field textarea { resize: vertical; }
+    .add-field input::placeholder, .add-field textarea::placeholder { color: var(--muted-2); }
+    .add-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .add-submit { margin-top: 4px; padding: 12px; background: linear-gradient(135deg, #6573c8, #4f5fb5); color: #fff; border: none; border-radius: 9px; font-size: 14px; font-weight: 700; }
+    .add-submit:active { filter: brightness(0.94); }
     .search {
       width: 100%; padding: 10px 12px;
       background: var(--surface-2); border: 1px solid var(--border-2);
@@ -469,6 +480,37 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeAddModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">➕ Tambah Akaun Sedia Ada</span>
+      <button class="modal-x" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="modal-sub">Masukkan akaun yang kau dah ada. Mana-mana domain boleh (gmail, dll) — untuk tracking dalam pipeline.</div>
+    <div class="add-form">
+      <div class="add-field"><label>Email *</label><input type="text" id="add-email" placeholder="contoh@gmail.com atau nama je (auto @onee.store)" autocomplete="off"></div>
+      <div class="add-field"><label>Password</label><input type="text" id="add-pass" placeholder="default: mahal12345" autocomplete="off"></div>
+      <div class="add-field"><label>Masuk stage mana?</label>
+        <select id="add-stage">
+          <option value="GENERATE">Generate (baru masuk)</option>
+          <option value="CHECKING">Checking</option>
+          <option value="EDITING">Editing</option>
+          <option value="LISTED" selected>Listed (dah siap jual)</option>
+        </select></div>
+      <div class="add-row2">
+        <div class="add-field"><label>Harga Beli</label><input type="text" id="add-hargabeli" placeholder="modal"></div>
+        <div class="add-field"><label>Harga Jual</label><input type="text" id="add-harga" placeholder="RM"></div>
+      </div>
+      <div class="add-row2">
+        <div class="add-field"><label>Supplier</label><input type="text" id="add-supplier" placeholder="opsional"></div>
+        <div class="add-field"><label>Silog</label><input type="number" inputmode="numeric" id="add-silog" placeholder="10"></div>
+      </div>
+      <div class="add-field"><label>Player List</label><textarea id="add-playerlist" rows="2" placeholder="opsional"></textarea></div>
+      <button class="add-submit" onclick="submitAddAccount()">➕ Tambah ke Pipeline</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -702,7 +744,8 @@
     const tb = document.getElementById('pipelineToolbar');
     tb.innerHTML =
       (activeStage === 'GENERATE'
-        ? `<button class="btn-generate" onclick="generateEmail()">⚡ Generate Email Baru</button>` : '') +
+        ? `<button class="btn-generate" onclick="generateEmail()">⚡ Generate Email Baru</button>
+           <button class="btn-addexisting" onclick="openAddModal()">➕ Tambah Akaun Sedia Ada</button>` : '') +
       `<input class="search" type="text" id="search" placeholder="🔍 Cari email / player / supplier…" value="${ea(currentSearch)}" oninput="onSearch(this.value)">`;
 
     const q = currentSearch.toLowerCase();
@@ -877,6 +920,42 @@
       renderStageTabs();
       renderPipeline();
       toast('✨ ' + email);
+    } catch (e) { toast('Gagal: ' + e.message); }
+  }
+
+  /* ════════ Tambah akaun sedia ada (manual) ════════ */
+  function openAddModal() {
+    ['add-email','add-pass','add-hargabeli','add-harga','add-supplier','add-silog','add-playerlist'].forEach(function (id) {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('add-stage').value = 'LISTED';
+    document.getElementById('addModal').classList.add('show');
+    setTimeout(function () { const e = document.getElementById('add-email'); if (e) e.focus(); }, 50);
+  }
+  function closeAddModal() { document.getElementById('addModal').classList.remove('show'); }
+
+  async function submitAddAccount() {
+    const email = (document.getElementById('add-email').value || '').trim();
+    if (!email) { toast('Isi email dulu'); return; }
+    const payload = {
+      email: email,
+      password: (document.getElementById('add-pass').value || '').trim(),
+      stage: document.getElementById('add-stage').value,
+      hargaBeli: (document.getElementById('add-hargabeli').value || '').trim(),
+      harga: (document.getElementById('add-harga').value || '').trim(),
+      supplier: (document.getElementById('add-supplier').value || '').trim(),
+      silog: (document.getElementById('add-silog').value || '').trim(),
+      playerList: (document.getElementById('add-playerlist').value || '').trim()
+    };
+    try {
+      const json = await apiPost(API_GENERATE, payload);
+      if (!json.ok) { toast('Gagal: ' + json.error); return; }
+      allData.unshift(json.data);
+      closeAddModal();
+      activeStage = String(payload.stage || 'GENERATE').toUpperCase();
+      renderStageTabs();
+      renderPipeline();
+      toast('➕ Akaun ditambah → ' + activeStage);
     } catch (e) { toast('Gagal: ' + e.message); }
   }
 
