@@ -253,6 +253,26 @@
     .btn-backup { width: 100%; margin-top: 11px; padding: 10px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-2); border-radius: 8px; font-size: 13px; font-weight: 700; }
     .btn-backup:active { filter: brightness(1.15); }
 
+    /* ── Intelligence ── */
+    .intel-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .int-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .int-stat { background: var(--surface-2); border-radius: 10px; padding: 12px; }
+    .int-stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .int-stat .v { font-size: 22px; font-weight: 800; margin-top: 4px; }
+    .int-stat .v.green { color: var(--c-listed); }
+    .int-stat .c { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .int-hi { font-size: 22px; font-weight: 800; }
+    .int-hi.good { color: var(--c-listed); } .int-hi.mid { color: var(--c-sold); } .int-hi.low { color: var(--c-flagged); }
+    .int-section-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .int-list { display: flex; flex-direction: column; gap: 7px; }
+    .int-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; background: var(--surface-2); border-radius: 8px; padding: 9px 11px; }
+    .int-lbl { font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .int-vals { font-size: 11px; color: var(--muted); text-align: right; }
+    .int-roi { font-weight: 700; padding: 2px 7px; border-radius: 10px; font-size: 11px; }
+    .int-roi.good { background: rgba(67,160,71,0.15); color: var(--c-listed); }
+    .int-roi.mid  { background: rgba(255,167,38,0.12); color: var(--c-sold); }
+    .int-roi.low  { background: rgba(229,57,53,0.12); color: #ff8a80; }
+
     /* ── Stok (Inventory Aging) ── */
     .stok { padding: 16px; }
     .stk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -472,7 +492,7 @@
     CHECKING: { label:'Pass ke Editing',    cls:'to-editing'  },
     EDITING:  { label:'Pass ke Listed',     cls:'to-listed'   }
   };
-  const WORKER_ROLE = { Dekwan:'Checking · Android', Korer:'Editing · iOS', Danial:'Admin · Owner' };
+  const WORKER_ROLE = { Dekwan:'Checking · Android', Korer:'Editing · iOS', Danial:'Admin · Owner', Amsyar:'Admin · Serah' };
 
   /* ════════ Player Converter (shorthand → nama penuh) ════════ */
   // Default fallback — akan di-override oleh data dari sheet (SHORTHAND_MAP) bila loadShorthand() siap.
@@ -763,6 +783,7 @@
             <option value="">— Pilih nama —</option>
             <option value="Danial">Danial</option>
             <option value="Dekwan">Dekwan</option>
+            <option value="Amsyar">Amsyar</option>
             <option value="__other__">Lain…</option>
           </select></div>
         <div class="field full" id="saleother-wrap-${idx}" style="display:none">
@@ -1077,9 +1098,63 @@
       if (!json.ok) throw new Error(json.error);
       renderDashboard(json.data);
       loadBackupStatus();
+      loadIntelligence();
     } catch (e) {
       document.getElementById('dash').innerHTML = '<div class="empty">Tak boleh load.<br>' + esc(e.message) + '</div>';
     }
+  }
+
+  async function loadIntelligence() {
+    const box = document.getElementById('intel-body');
+    if (!box) return;
+    box.innerHTML = '<div class="loading" style="padding:12px">Loading…</div>';
+    try {
+      const json = await apiPost(API_UPDATE, { action: 'intelligence' });
+      if (!json || !json.ok) { box.innerHTML = '<div class="empty">Gagal load.</div>'; return; }
+      renderIntelligence(json.data, box);
+    } catch (e) { box.innerHTML = '<div class="empty">Gagal: ' + esc(e.message) + '</div>'; }
+  }
+
+  function renderIntelligence(d, box) {
+    if (d.empty || d.soldCount === 0) {
+      box.innerHTML = '<div class="empty">Belum ada rekod SOLD untuk analisa.</div>';
+      return;
+    }
+    const marginStr = (d.avgMarginPct !== null)
+      ? '<span class="int-hi ' + (d.avgMarginPct >= 30 ? 'good' : d.avgMarginPct >= 15 ? 'mid' : 'low') + '">' + d.avgMarginPct.toFixed(1) + '%</span>'
+      : '—';
+
+    const catRows = d.categories.length ? d.categories.map(function (c, i) {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.';
+      return '<div class="int-row"><span class="int-lbl">' + medal + ' ' + esc(c.cat) + '</span>'
+        + '<span class="int-vals">' + c.count + ' akaun · ' + rm(c.revenue) + (c.profit ? ' · untung ' + rm(c.profit) : '') + '</span></div>';
+    }).join('') : '<div class="empty">Takde data player list.</div>';
+
+    const supRows = d.suppliers.length ? d.suppliers.map(function (s) {
+      const roiStr = (s.roi !== null) ? '<span class="int-roi ' + (s.roi >= 30 ? 'good' : s.roi >= 10 ? 'mid' : 'low') + '">' + s.roi.toFixed(0) + '% ROI</span>' : '';
+      return '<div class="int-row"><span class="int-lbl">' + esc(s.sup) + '</span>'
+        + '<span class="int-vals">' + s.count + ' akaun' + (roiStr ? ' · ' + roiStr : '') + ' · untung ' + rm(s.profit) + '</span></div>';
+    }).join('') : '<div class="empty">Takde data supplier.</div>';
+
+    const admins = d.admins || [];
+    const admRows = admins.length ? admins.map(function (a, i) {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.';
+      return '<div class="int-row"><span class="int-lbl">' + medal + ' ' + esc(a.worker) + '</span>'
+        + '<span class="int-vals">' + a.sales + ' sale · ' + rm(a.revenue) + (a.profit ? ' · untung ' + rm(a.profit) : '') + '</span></div>';
+    }).join('') : '<div class="empty">Takde rekod serah lagi.</div>';
+
+    box.innerHTML = `
+      <div class="int-stat-row">
+        <div class="int-stat"><div class="k">Avg Margin</div><div class="v">${marginStr}</div><div class="c">${d.marginCount}/${d.soldCount} ada cost</div></div>
+        <div class="int-stat"><div class="k">Total Untung</div><div class="v green">${rm(d.totalProfit)}</div><div class="c">dari ${d.soldCount} sale</div></div>
+      </div>
+      <div class="int-section-lbl">🧑‍💼 Sales by Admin (siapa serah)</div>
+      <div class="int-list">${admRows}</div>
+      <div class="int-section-lbl" style="margin-top:14px">🏆 Category paling laku</div>
+      <div class="int-list">${catRows}</div>
+      <div class="int-section-lbl" style="margin-top:14px">🏪 Supplier ROI</div>
+      <div class="int-list">${supRows}</div>
+    `;
   }
 
   async function loadBackupStatus() {
@@ -1145,6 +1220,10 @@
       </div>
       <div class="dash-section-label">Pipeline — di mana akaun sekarang</div>
       <div class="funnel">${funnel}</div>
+      <div class="dash-section-label" style="margin-top:20px">🧠 Intelligence</div>
+      <div class="intel-card">
+        <div id="intel-body"><div class="loading" style="padding:12px">Loading…</div></div>
+      </div>
       <div class="dash-section-label" style="margin-top:20px">🛡️ Backup Data</div>
       <div class="backup-card">
         <div class="backup-info" id="backupInfo">Semak status…</div>
@@ -1175,7 +1254,7 @@
 
     const totals = d.totals || {};
     const names = Object.keys(totals).sort((a,b) => totals[b] - totals[a]);
-    const palette = { Dekwan:'var(--c-checking)', Korer:'var(--c-editing)', Danial:'var(--c-sold)' };
+    const palette = { Dekwan:'var(--c-checking)', Korer:'var(--c-editing)', Danial:'var(--c-sold)', Amsyar:'var(--primary)' };
 
     const workers = names.length
       ? names.map(n => `
