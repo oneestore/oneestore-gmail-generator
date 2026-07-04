@@ -166,7 +166,11 @@
     .btn-convert { width: 100%; margin-top: 7px; padding: 9px; background: linear-gradient(135deg, #b455c7, #8e3aa0); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; }
     .btn-convert:active { filter: brightness(0.94); }
     .conv-out-wrap { margin-top: 8px; }
-    .conv-out { background: var(--bg); border: 1px solid rgba(171,71,188,0.45); border-radius: 6px; padding: 9px 10px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--text); max-height: 220px; overflow-y: auto; }
+    .conv-out { background: var(--bg); border: 1px solid rgba(171,71,188,0.45); border-radius: 6px; padding: 9px 10px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--text); }
+    .conv-out.collapsed { max-height: 128px; overflow: hidden; }
+    .conv-out.expanded { max-height: 320px; overflow-y: auto; }
+    .conv-toggle { width: 100%; margin-top: 6px; padding: 7px; background: transparent; color: #ce93d8; border: 1px dashed rgba(171,71,188,0.4); border-radius: 7px; font-size: 12px; font-weight: 600; }
+    .conv-toggle:active { background: rgba(171,71,188,0.12); }
     .btn-conv-copy { width: 100%; margin-top: 7px; padding: 9px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-2); border-radius: 7px; font-size: 12px; font-weight: 600; }
     .btn-conv-copy:active { color: var(--text); }
     .conv-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; gap: 8px; }
@@ -588,20 +592,45 @@
     return out;
   }
 
+  const CONV_COLLAPSE_N = 5; // papar 5 baris dulu, selebihnya sorok
   function runConvert(idx) {
     const raw = val('conv-inp-' + idx);
     const names = convertPlayerText(raw);
     const wrap = document.getElementById('conv-out-wrap-' + idx);
     const out  = document.getElementById('conv-out-' + idx);
+    const toggle = document.getElementById('conv-toggle-' + idx);
     if (names.length === 0) {
       if (out) out.textContent = '';
       if (wrap) wrap.style.display = 'none';
       toast('Tiada player jumpa — check shorthand (B, S, NE…)');
       return;
     }
-    if (out)  out.textContent = names.join('\n');
+    if (out) { out.textContent = names.join('\n'); out.classList.remove('expanded'); out.classList.add('collapsed'); }
+    if (toggle) {
+      if (names.length > CONV_COLLAPSE_N) {
+        toggle.style.display = 'block';
+        toggle.textContent = '⌄ Show more (' + (names.length - CONV_COLLAPSE_N) + ' lagi)';
+      } else {
+        toggle.style.display = 'none';
+        if (out) { out.classList.remove('collapsed'); out.classList.add('expanded'); } // pendek — papar penuh
+      }
+    }
     if (wrap) wrap.style.display = 'block';
     toast('⚡ ' + names.length + ' player');
+  }
+
+  function toggleConvOut(idx) {
+    const out = document.getElementById('conv-out-' + idx);
+    const toggle = document.getElementById('conv-toggle-' + idx);
+    if (!out) return;
+    if (out.classList.contains('collapsed')) {
+      out.classList.remove('collapsed'); out.classList.add('expanded');
+      if (toggle) toggle.textContent = '⌃ Show less';
+    } else {
+      out.classList.remove('expanded'); out.classList.add('collapsed');
+      const n = out.textContent.split('\n').filter(Boolean).length;
+      if (toggle) toggle.textContent = '⌄ Show more (' + Math.max(0, n - CONV_COLLAPSE_N) + ' lagi)';
+    }
   }
 
   function copyConvOut(idx) {
@@ -859,7 +888,8 @@
         <textarea id="conv-inp-${idx}" class="conv-input" rows="3" placeholder="Paste shorthand: B Messi  NE Ronaldo  NA Sasuke…">${esc(d.playerList||'')}</textarea>
         <button class="btn-convert" onclick="runConvert(${idx})">Convert ⬇</button>
         <div class="conv-out-wrap" id="conv-out-wrap-${idx}" style="display:none">
-          <div class="conv-out" id="conv-out-${idx}"></div>
+          <div class="conv-out collapsed" id="conv-out-${idx}"></div>
+          <button class="conv-toggle" id="conv-toggle-${idx}" onclick="toggleConvOut(${idx})" style="display:none">⌄ Show more</button>
           <button class="btn-conv-copy" onclick="copyConvOut(${idx})">📋 Copy list penuh</button>
         </div>
         <div class="conv-foot">
