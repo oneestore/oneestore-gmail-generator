@@ -124,6 +124,8 @@
     .card.needs-price { box-shadow: inset 0 0 0 1px rgba(255,167,38,0.25); }
 
     .row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .cred-row { align-items: stretch; }
+    .cred-col { display: flex; flex-direction: column; justify-content: center; gap: 4px; flex: 1; min-width: 0; }
     .email-text { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; color: #8b9bf0; flex: 1; word-break: break-all; }
     .pass-text  { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; color: var(--muted); flex: 1; word-break: break-all; }
     .copy-btn {
@@ -900,13 +902,12 @@
 
     return `
       <div class="card s-${s.toLowerCase()} ${needsPrice?'needs-price':''}" id="card-${idx}">
-        <div class="row">
-          <span class="email-text">${esc(d.email)}</span>
-          <button class="copy-btn" onclick="doCopy('${ea(d.email)}',this)">Copy</button>
-        </div>
-        <div class="row">
-          <span class="pass-text">${esc(d.password)}</span>
-          <button class="copy-btn" onclick="doCopy('${ea(d.password)}',this)">Copy</button>
+        <div class="row cred-row">
+          <div class="cred-col">
+            <span class="email-text">${esc(d.email)}</span>
+            <span class="pass-text">${esc(d.password)}</span>
+          </div>
+          <button class="copy-btn" onclick="doCopyBoth('${ea(d.email)}','${ea(d.password)}',this)">Copy</button>
         </div>
         <div class="meta-row">
           <span class="stage-pill" style="background:${hexFade(s)};color:${m.color}">
@@ -1499,6 +1500,11 @@
       btn.textContent = '✓'; btn.classList.add('ok');
       setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 1400);
     });
+  }
+
+  // Copy email + password sekali (email, baris baru, password)
+  function doCopyBoth(email, password, btn) {
+    doCopy(email + '\n' + password, btn);
   }
 
   /* ════════ Undo (pulang stage je — komisen kekal) ════════ */
