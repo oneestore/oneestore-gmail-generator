@@ -179,6 +179,22 @@
     .conv-legend { font-size: 10px; color: var(--muted-2); font-family: ui-monospace, monospace; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .conv-manage { flex-shrink: 0; background: transparent; border: none; color: #ce93d8; font-size: 11px; font-weight: 600; padding: 2px 4px; }
 
+    /* ── Proof image (SS link Konami ID) ── */
+    .proof { background: rgba(58,168,224,0.05); border: 1px solid rgba(58,168,224,0.18); border-radius: 10px; padding: 11px; margin-bottom: 9px; }
+    .proof-label { font-size: 10px; color: #7cc3e8; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; font-weight: 500; }
+    .proof-thumb { width: 100%; max-height: 260px; object-fit: contain; border-radius: 8px; background: var(--bg); border: 1px solid var(--border-2); display: block; }
+    .proof-empty { font-size: 12px; color: var(--muted); padding: 8px 2px; line-height: 1.5; }
+    .proof-actions { display: flex; gap: 7px; margin-top: 8px; }
+    .proof-btn {
+      flex: 1; display: inline-flex; align-items: center; justify-content: center;
+      padding: 9px; background: transparent; color: var(--muted);
+      border: 1px solid var(--border-2); border-radius: 8px;
+      font-size: 12px; font-weight: 500; text-decoration: none; text-align: center;
+    }
+    .proof-btn:active { color: var(--text); }
+    .proof-btn.dl { color: #7cc3e8; border-color: rgba(58,168,224,0.3); }
+    .proof-btn:disabled { opacity: 0.6; }
+
     /* ── Code-management modal ── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(2px); }
     .modal-overlay.show { display: flex; }
@@ -883,6 +899,25 @@
       action = `<div class="info-note flagged">🚩 Tak safe — akaun ada link (eFootball / Game Center).${d.notes ? '<br>📝 ' + esc(d.notes) : ''}</div>`;
     }
 
+    // Proof image (CHECKING: upload SS link Konami ID · EDITING: view + download untuk worker)
+    const proofId = driveId(d.proof);
+    const proofBlock = (s === 'CHECKING' || s === 'EDITING') ? `
+      <div class="proof">
+        <label class="proof-label">📸 Proof link Konami ID</label>
+        ${proofId ? `
+        <a href="https://drive.google.com/file/d/${proofId}/view" target="_blank" rel="noopener">
+          <img class="proof-thumb" src="https://drive.google.com/thumbnail?id=${proofId}&sz=w800" alt="Proof link Konami ID" loading="lazy">
+        </a>` : `
+        <div class="proof-empty">${s === 'CHECKING'
+          ? 'Belum ada gambar — upload SS dari game (proof link Google Play).'
+          : 'Takde gambar proof dari Checking lagi.'}</div>`}
+        <div class="proof-actions">
+          <button class="proof-btn" id="proofbtn-${idx}" onclick="pickProof(${idx})">${proofId ? '🔄 Tukar gambar' : '⬆️ Upload gambar'}</button>
+          ${proofId ? `<a class="proof-btn dl" href="https://drive.google.com/uc?export=download&id=${proofId}" target="_blank" rel="noopener">⬇️ Download</a>` : ''}
+        </div>
+        <input type="file" accept="image/*" id="prooffile-${idx}" style="display:none" onchange="uploadProof(${idx}, this)">
+      </div>` : '';
+
     // Player Converter (EDITING je) — hasil masuk ke Player List
     const converterBlock = (s === 'EDITING') ? `
       <div class="converter">
@@ -916,6 +951,7 @@
           ${silogBadge(d.silog)}
           <span class="meta-date">${esc(d.tarikh||'')}</span>
         </div>
+        ${proofBlock}
         ${converterBlock}
         ${editable}
         ${action}
@@ -938,6 +974,60 @@
                   LISTED:'rgba(58,161,95,0.13)', SOLD:'rgba(224,162,58,0.13)', FLAGGED:'rgba(224,90,90,0.13)',
                   LIMIT:'rgba(107,125,136,0.13)' };
     return map[stage] || 'rgba(255,255,255,0.06)';
+  }
+
+  /* ════════ Proof image (SS link Konami ID) ════════ */
+  function driveId(s) {
+    const m = String(s || '').match(/[-\w]{25,}/);
+    return m ? m[0] : null;
+  }
+
+  function pickProof(idx) { document.getElementById('prooffile-' + idx).click(); }
+
+  async function uploadProof(idx, input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    input.value = ''; // reset supaya boleh pilih fail sama semula
+    const btn = document.getElementById('proofbtn-' + idx);
+    const orig = btn.textContent;
+    btn.textContent = '⏳ Uploading…'; btn.disabled = true;
+    try {
+      const b64 = await compressImage(file, 1600, 0.85);
+      const json = await apiPost(API_UPDATE, {
+        action: 'uploadProof', email: allData[idx].email,
+        imageBase64: b64, mimeType: 'image/jpeg'
+      });
+      if (!json.ok) throw new Error(json.error || 'Upload gagal');
+      allData[idx].proof = json.data.proof;
+      toast('📸 Gambar proof disimpan');
+      renderPipeline();
+    } catch (err) {
+      btn.textContent = orig; btn.disabled = false;
+      toast('❌ ' + (err.message || err));
+    }
+  }
+
+  // Resize + compress ke JPEG (max 1600px) supaya upload laju & bawah limit proxy
+  function compressImage(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.width, h = img.height;
+        if (Math.max(w, h) > maxDim) {
+          const k = maxDim / Math.max(w, h);
+          w = Math.round(w * k); h = Math.round(h * k);
+        }
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = cv.toDataURL('image/jpeg', quality);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gambar tak boleh dibaca')); };
+      img.src = url;
+    });
   }
 
   function toggleSaleOther(idx) {

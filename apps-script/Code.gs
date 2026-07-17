@@ -29,6 +29,7 @@ const PAYOUT_SHEET_NAME = 'PAYOUT_LOG';
 const EMAIL_DOMAIN   = 'onee.store';
 const FIXED_PASSWORD = 'mahal12345';
 const BACKUP_FOLDER_NAME = 'Oneestore Backups';   // folder dalam Drive untuk simpan salinan
+const PROOF_FOLDER_NAME  = 'Oneestore Proofs';     // folder dalam Drive untuk gambar proof link Konami ID
 const BACKUP_KEEP        = 14;                     // simpan 14 backup terkini (auto-buang lama)
 const RESET_PIN          = '740901';               // PIN untuk butang Reset (server-side, tak terdedah di frontend)
 const TIMEZONE       = 'Asia/Kuala_Lumpur'; // Penang = UTC+8
@@ -37,15 +38,16 @@ const TIMEZONE       = 'Asia/Kuala_Lumpur'; // Penang = UTC+8
 const LINK_WORKER_URL = 'https://oneestore-link-worker.daniall1841.workers.dev';
 const LINK_SECRET     = 'oneestore-link-a8f4e1c93b7d-2026';
 
-// Column order MESTI padan dengan Sheet header row (A..M)
+// Column order MESTI padan dengan Sheet header row (A..N)
 const HEADERS = [
   'Email', 'Password', 'Tarikh', 'Player List', 'Harga Jual', 'Supplier', 'Stage',
-  'Customer WhatsApp', 'Linked At', 'Sold At', 'Harga Beli', 'Notes', 'Silog'
+  'Customer WhatsApp', 'Linked At', 'Sold At', 'Harga Beli', 'Notes', 'Silog', 'Proof'
 ];
 // Column index (1-based) untuk rujukan jelas
 const COL = {
   EMAIL: 1, PASSWORD: 2, TARIKH: 3, PLAYER: 4, HARGA: 5, SUPPLIER: 6,
-  STAGE: 7, WHATSAPP: 8, LINKED_AT: 9, SOLD_AT: 10, HARGA_BELI: 11, NOTES: 12, SILOG: 13
+  STAGE: 7, WHATSAPP: 8, LINKED_AT: 9, SOLD_AT: 10, HARGA_BELI: 11, NOTES: 12, SILOG: 13,
+  PROOF: 14
 };
 const DEFAULT_SILOG = 10; // Konami bagi 10x login/bulan untuk akaun baru
 
@@ -101,6 +103,7 @@ function doPost(e) {
       case 'delete':      return jsonOut(handleDelete(body));
       case 'list':        return jsonOut({ ok: true, data: listAll() });
       case 'assignsale':  return jsonOut(handleAssignSale(body));
+      case 'uploadproof': return jsonOut(handleUploadProof(body));
       case 'transition':  return jsonOut(handleTransition(body));
       case 'listaccount': return jsonOut(handleListAccount(body));
       case 'dashboard':   return jsonOut(handleDashboard());
@@ -404,6 +407,66 @@ function handleAssignSale(body) {
       saleCommission: saleCommission // { logged, worker, event, amount }
     }
   };
+}
+
+/* ════════ PROOF IMAGE (SS link Konami ID dari game) ════════ */
+
+/**
+ * uploadProof — terima gambar (base64) dari app, simpan ke Drive folder
+ * "Oneestore Proofs", set sharing anyone-with-link (worker boleh view/download),
+ * dan tulis link ke kolum Proof (N). Upload baru GANTIKAN yang lama (lama di-trash).
+ * body: { email, imageBase64, mimeType? }
+ */
+function handleUploadProof(body) {
+  const sheet = getSheet();
+  const email = (body.email || '').trim().toLowerCase();
+  if (!email) return { ok: false, error: 'Email required' };
+  const b64 = String(body.imageBase64 || '');
+  if (!b64)   return { ok: false, error: 'Gambar kosong' };
+
+  const row = findRowByEmail(sheet, email);
+  if (row === -1) return { ok: false, error: 'Email tak jumpa: ' + email };
+
+  // Pastikan header kolum N wujud (sheet lama cuma A..M)
+  if (String(sheet.getRange(1, COL.PROOF).getValue()).trim() === '') {
+    sheet.getRange(1, COL.PROOF).setValue('Proof');
+  }
+
+  let bytes;
+  try { bytes = Utilities.base64Decode(b64); }
+  catch (e) { return { ok: false, error: 'Base64 tak valid' }; }
+
+  const mime  = body.mimeType || 'image/jpeg';
+  const ext   = (mime.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+  const stamp = Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd_HHmmss');
+  const name  = 'proof_' + email.split('@')[0] + '_' + stamp + '.' + ext;
+
+  const file = getProofFolder_().createFile(Utilities.newBlob(bytes, mime, name));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+  // Trash proof lama kalau ada (elak sampah Drive)
+  const prevId = extractDriveId_(sheet.getRange(row, COL.PROOF).getValue());
+  if (prevId) { try { DriveApp.getFileById(prevId).setTrashed(true); } catch (e) {} }
+
+  const url = 'https://drive.google.com/file/d/' + file.getId() + '/view';
+  sheet.getRange(row, COL.PROOF).setValue(url);
+
+  return { ok: true, data: { email: email, proof: url, id: file.getId() } };
+}
+
+function getProofFolder_() {
+  const it = DriveApp.getFoldersByName(PROOF_FOLDER_NAME);
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.getName() === PROOF_FOLDER_NAME) return f;
+  }
+  return DriveApp.createFolder(PROOF_FOLDER_NAME);
+}
+
+/** Extract Drive file ID dari URL/string (null kalau takde). */
+function extractDriveId_(s) {
+  const m = String(s || '').match(/[-\w]{25,}/);
+  return m ? m[0] : null;
 }
 
 // ====== HANDLERS: DASHBOARD & GAJI ======
@@ -953,6 +1016,10 @@ function getSheet() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   let sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+  // Safety: sheet lama mungkin fizikal < 14 kolum — tambah supaya baca kolum Proof tak error
+  if (sheet.getMaxColumns() < HEADERS.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
+  }
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.setFrozenRows(1);
@@ -1012,7 +1079,8 @@ function rowToObj(r) {
     supplier: supplier, seller: supplier,   // 'seller' alias (back-compat frontend lama)
     stage: stage, status: stage,            // 'status' alias (back-compat frontend lama)
     whatsapp: r[7] || '', linkedAt: r[8] || '',
-    soldAt: (r[9] instanceof Date) ? r[9] : (r[9] || '')
+    soldAt: (r[9] instanceof Date) ? r[9] : (r[9] || ''),
+    proof: r[13] || ''
   };
 }
 
