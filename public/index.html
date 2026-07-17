@@ -179,20 +179,35 @@
     .conv-legend { font-size: 10px; color: var(--muted-2); font-family: ui-monospace, monospace; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .conv-manage { flex-shrink: 0; background: transparent; border: none; color: #ce93d8; font-size: 11px; font-weight: 600; padding: 2px 4px; }
 
-    /* ── Proof image (SS link Konami ID) ── */
-    .proof { background: rgba(58,168,224,0.05); border: 1px solid rgba(58,168,224,0.18); border-radius: 10px; padding: 11px; margin-bottom: 9px; }
-    .proof-label { font-size: 10px; color: #7cc3e8; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; font-weight: 500; }
-    .proof-thumb { width: 100%; max-height: 260px; object-fit: contain; border-radius: 8px; background: var(--bg); border: 1px solid var(--border-2); display: block; }
-    .proof-empty { font-size: 12px; color: var(--muted); padding: 8px 2px; line-height: 1.5; }
-    .proof-actions { display: flex; gap: 7px; margin-top: 8px; }
+    /* ── Proof images (safe check: Google Play + Game Center) ── */
+    .proof { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+    .proof-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .proof-title { font-size: 11px; font-weight: 600; color: var(--text); letter-spacing: 0.3px; }
+    .proof-sub { font-size: 10px; color: var(--muted-2); }
+    .proof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .proof-slot { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 9px; display: flex; flex-direction: column; gap: 8px; }
+    .proof-slot-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .proof-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .proof-slot-name { font-size: 11px; font-weight: 500; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .proof-status { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 6px; flex-shrink: 0; }
+    .proof-status.ok { background: rgba(58,161,95,0.12); color: #6bc88c; }
+    .proof-status.none { background: rgba(255,255,255,0.05); color: var(--muted-2); }
+    .proof-thumb-wrap { display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-2); background: #000; }
+    .proof-thumb { width: 100%; height: 110px; object-fit: cover; display: block; }
+    .proof-empty {
+      height: 110px; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--muted-2); text-align: center; padding: 0 10px; line-height: 1.4;
+      border: 1px dashed var(--border-2); border-radius: 8px;
+    }
+    .proof-actions { display: flex; gap: 6px; }
     .proof-btn {
       flex: 1; display: inline-flex; align-items: center; justify-content: center;
-      padding: 9px; background: transparent; color: var(--muted);
+      padding: 8px; background: transparent; color: var(--muted);
       border: 1px solid var(--border-2); border-radius: 8px;
-      font-size: 12px; font-weight: 500; text-decoration: none; text-align: center;
+      font-size: 11px; font-weight: 500; text-decoration: none; text-align: center;
     }
     .proof-btn:active { color: var(--text); }
-    .proof-btn.dl { color: #7cc3e8; border-color: rgba(58,168,224,0.3); }
+    .proof-btn.dl { flex: 0 0 auto; padding: 8px 11px; color: #7cc3e8; border-color: rgba(58,168,224,0.3); }
     .proof-btn:disabled { opacity: 0.6; }
 
     /* ── Code-management modal ── */
@@ -899,23 +914,37 @@
       action = `<div class="info-note flagged">🚩 Tak safe — akaun ada link (eFootball / Game Center).${d.notes ? '<br>📝 ' + esc(d.notes) : ''}</div>`;
     }
 
-    // Proof image (CHECKING: upload SS link Konami ID · EDITING: view + download untuk worker)
-    const proofId = driveId(d.proof);
+    // Proof images (safe check) — Google Play (Checking) + Game Center (Editing)
+    const proofSlots = [
+      { key: 'play', name: 'Google Play', dot: '#6bc88c', id: driveId(d.proof) },
+      { key: 'gc',   name: 'Game Center', dot: '#7c86d6', id: driveId(d.proofGc) }
+    ];
     const proofBlock = (s === 'CHECKING' || s === 'EDITING') ? `
       <div class="proof">
-        <label class="proof-label">📸 Proof link Konami ID</label>
-        ${proofId ? `
-        <a href="https://drive.google.com/file/d/${proofId}/view" target="_blank" rel="noopener">
-          <img class="proof-thumb" src="https://drive.google.com/thumbnail?id=${proofId}&sz=w800" alt="Proof link Konami ID" loading="lazy">
-        </a>` : `
-        <div class="proof-empty">${s === 'CHECKING'
-          ? 'Belum ada gambar — upload SS dari game (proof link Google Play).'
-          : 'Takde gambar proof dari Checking lagi.'}</div>`}
-        <div class="proof-actions">
-          <button class="proof-btn" id="proofbtn-${idx}" onclick="pickProof(${idx})">${proofId ? '🔄 Tukar gambar' : '⬆️ Upload gambar'}</button>
-          ${proofId ? `<a class="proof-btn dl" href="https://drive.google.com/uc?export=download&id=${proofId}" target="_blank" rel="noopener">⬇️ Download</a>` : ''}
+        <div class="proof-head">
+          <span class="proof-title">📸 Proof link akaun</span>
+          <span class="proof-sub">SS dari game — safe check</span>
         </div>
-        <input type="file" accept="image/*" id="prooffile-${idx}" style="display:none" onchange="uploadProof(${idx}, this)">
+        <div class="proof-grid">
+          ${proofSlots.map(p => `
+          <div class="proof-slot">
+            <div class="proof-slot-head">
+              <span class="proof-dot" style="background:${p.dot}"></span>
+              <span class="proof-slot-name">${p.name}</span>
+              <span class="proof-status ${p.id ? 'ok' : 'none'}">${p.id ? '✓ Ada' : 'Belum'}</span>
+            </div>
+            ${p.id ? `
+            <a class="proof-thumb-wrap" href="https://drive.google.com/file/d/${p.id}/view" target="_blank" rel="noopener">
+              <img class="proof-thumb" src="https://drive.google.com/thumbnail?id=${p.id}&sz=w400" alt="Proof ${p.name}" loading="lazy">
+            </a>` : `
+            <div class="proof-empty">Upload SS link ${p.name}</div>`}
+            <div class="proof-actions">
+              <button class="proof-btn" id="proofbtn-${p.key}-${idx}" onclick="pickProof(${idx},'${p.key}')">${p.id ? '🔄 Tukar' : '⬆️ Upload'}</button>
+              ${p.id ? `<a class="proof-btn dl" href="https://drive.google.com/uc?export=download&id=${p.id}" target="_blank" rel="noopener" title="Download">⬇️</a>` : ''}
+            </div>
+            <input type="file" accept="image/*" id="prooffile-${p.key}-${idx}" style="display:none" onchange="uploadProof(${idx},'${p.key}',this)">
+          </div>`).join('')}
+        </div>
       </div>` : '';
 
     // Player Converter (EDITING je) — hasil masuk ke Player List
@@ -982,24 +1011,25 @@
     return m ? m[0] : null;
   }
 
-  function pickProof(idx) { document.getElementById('prooffile-' + idx).click(); }
+  function pickProof(idx, slot) { document.getElementById('prooffile-' + slot + '-' + idx).click(); }
 
-  async function uploadProof(idx, input) {
+  async function uploadProof(idx, slot, input) {
     const file = input.files && input.files[0];
     if (!file) return;
     input.value = ''; // reset supaya boleh pilih fail sama semula
-    const btn = document.getElementById('proofbtn-' + idx);
+    const btn = document.getElementById('proofbtn-' + slot + '-' + idx);
     const orig = btn.textContent;
-    btn.textContent = '⏳ Uploading…'; btn.disabled = true;
+    btn.textContent = '⏳ Upload…'; btn.disabled = true;
     try {
       const b64 = await compressImage(file, 1600, 0.85);
       const json = await apiPost(API_UPDATE, {
-        action: 'uploadProof', email: allData[idx].email,
+        action: 'uploadProof', email: allData[idx].email, slot: slot,
         imageBase64: b64, mimeType: 'image/jpeg'
       });
       if (!json.ok) throw new Error(json.error || 'Upload gagal');
-      allData[idx].proof = json.data.proof;
-      toast('📸 Gambar proof disimpan');
+      if (slot === 'gc') allData[idx].proofGc = json.data.proof;
+      else allData[idx].proof = json.data.proof;
+      toast('📸 Proof ' + (slot === 'gc' ? 'Game Center' : 'Google Play') + ' disimpan');
       renderPipeline();
     } catch (err) {
       btn.textContent = orig; btn.disabled = false;
